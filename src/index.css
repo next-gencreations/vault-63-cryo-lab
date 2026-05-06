@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #030803;
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+}
+
+body {
+  cursor: crosshair;
+}
+
+/* Steam particle animation */
+@keyframes steamRise {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.8; }
+  50%  { transform: translate(var(--sx, 10px), -30px) scale(1.5); opacity: 0.5; }
+  100% { transform: translate(var(--sx, 15px), -60px) scale(2); opacity: 0; }
+}
+
+/* Float bob for interaction hints */
+@keyframes floatBob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%       { transform: translateX(-50%) translateY(-4px); }
+}
+
+/* Scanline ticker for terminals */
+@keyframes scanline {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(200%); opacity: 0; }
+}
+
+/* Fade in */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Pulse glow */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 8px #00ff44; }
+  50%       { box-shadow: 0 0 20px #00ff44, 0 0 40px #00ff4444; }
+}
+
+/* Blinking cursor */
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Screen flicker */
+@keyframes flicker {
+  0%   { opacity: 1; }
+  92%  { opacity: 1; }
+  93%  { opacity: 0.9; }
+  94%  { opacity: 1; }
+  96%  { opacity: 0.95; }
+  100% { opacity: 1; }
+}
+
+button {
+  cursor: pointer;
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 1px solid #00ff44;
+}
