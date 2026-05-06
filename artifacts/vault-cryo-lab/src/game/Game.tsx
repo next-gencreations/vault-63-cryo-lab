@@ -1,0 +1,466 @@
+import { Canvas } from '@react-three/fiber';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Scene } from './Scene';
+import { PipBoy } from './PipBoy';
+import { TerminalModal } from './TerminalModal';
+import { Crosshair } from './Crosshair';
+import { MobileControls } from './MobileControls';
+import { DayCounter } from './DayCounter';
+import { RadiationScanner } from './RadiationScanner';
+import { CinematicIntro } from './CinematicIntro';
+import { VaultGirl } from './VaultGirl';
+import { BootSequence } from './BootSequence';
+import { PipBoyScreen } from './types';
+import { checkWebGL } from './WebGLCheck';
+import { useTradingData } from './useTradingData';
+
+const isMobile = typeof window !== 'undefined' &&
+  ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+function NoWebGL() {
+  return (
+    <div style={{
+      width: '100vw', height: '100vh', background: '#010801',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      fontFamily: "'Courier New', monospace", color: '#00ff44', gap: 14,
+    }}>
+      <div style={{ fontSize: 24, letterSpacing: 6, textShadow: '0 0 20px #00ff44' }}>VAULT 63</div>
+      <div style={{ color: '#ff4444', fontSize: 11, letterSpacing: 3 }}>DISPLAY SYSTEM FAILURE</div>
+      <div style={{ color: '#008822', fontSize: 10, letterSpacing: 1, textAlign: 'center', maxWidth: 360, lineHeight: 1.8 }}>
+        WebGL is required for the 3D vault experience.<br />
+        Please open in a WebGL-capable browser tab.
+      </div>
+    </div>
+  );
+}
+
+function VaultGame() {
+  const [showBoot, setShowBoot]           = useState(true);
+  const [showCinematic, setShowCinematic] = useState(false);
+  const [isActive, setIsActive]           = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [introStep, setIntroStep] = useState(0);
+  const [nearbyTerminal, setNearbyTerminal] = useState<string | null>(null);
+  const [activeTerminal, setActiveTerminal] = useState<string | null>(null);
+  const [pipBoyOpen, setPipBoyOpen] = useState(false);
+  const [pipBoyScreen, setPipBoyScreen] = useState<PipBoyScreen>('STAT');
+
+  // Live trading data — drives Pip-Boy TRADE screen, terminal, and vault girl mood
+  const trading = useTradingData(8_000);
+
+  // Shared refs that cross the Canvas/HTML boundary
+  const cameraRotRef = useRef({ yaw: 0, pitch: 0 });
+  const moveInputRef = useRef({ x: 0, z: 0 });
+  const playerPosRef = useRef({ x: 0, z: 9 });
+
+  const isModalOpen = pipBoyOpen || !!activeTerminal;
+
+  // Intro sequence
+  useEffect(() => {
+    const t1 = setTimeout(() => setIntroStep(1), 1800);
+    const t2 = setTimeout(() => setIntroStep(2), 3200);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.code === 'Tab') {
+        e.preventDefault();
+        if (!activeTerminal) setPipBoyOpen(o => !o);
+      }
+      if (e.code === 'KeyE' && nearbyTerminal && isActive && !isModalOpen) {
+        setActiveTerminal(nearbyTerminal);
+      }
+      if (e.code === 'Escape') {
+        if (activeTerminal) { setActiveTerminal(null); return; }
+        if (pipBoyOpen) { setPipBoyOpen(false); }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [nearbyTerminal, isActive, isModalOpen, activeTerminal, pipBoyOpen]);
+
+  const handleLock = useCallback(() => { setIsActive(true); setHasStarted(true); }, []);
+  const handleUnlock = useCallback(() => setIsActive(false), []);
+  const handleNearTerminal = useCallback((id: string | null) => setNearbyTerminal(id), []);
+
+  const handleMobileStart = () => {
+    setIsActive(true);
+    setHasStarted(true);
+  };
+
+  const handleInteract = useCallback(() => {
+    if (nearbyTerminal) setActiveTerminal(nearbyTerminal);
+  }, [nearbyTerminal]);
+
+  const handlePipBoy = useCallback(() => {
+    if (!activeTerminal) setPipBoyOpen(o => !o);
+  }, [activeTerminal]);
+
+  const showHUD = isActive && !isModalOpen;
+
+  return (
+    <div style={{
+      width: '100vw', height: '100vh',
+      background: '#010801',
+      position: 'relative',
+      overflow: 'hidden',
+      userSelect: 'none',
+      fontFamily: "'Courier New', monospace",
+      touchAction: 'none',
+    }}>
+      {/* ── Boot sequence (shows first, then transitions to cinematic) ── */}
+      {showBoot && (
+        <BootSequence onComplete={() => { setShowBoot(false); setShowCinematic(true); }} />
+      )}
+
+      {/* ── Cinematic intro (shown after boot completes) ── */}
+      {showCinematic && (
+        <CinematicIntro onComplete={() => setShowCinematic(false)} />
+      )}
+
+      {/* 3D Canvas */}
+      <Canvas
+        camera={{ fov: isMobile ? 80 : 75, near: 0.1, far: 100 }}
+        gl={{ antialias: true, toneMapping: 3, toneMappingExposure: 0.9 }}
+        style={{ width: '100%', height: '100%', display: 'block' }}
+      >
+        <Suspense fallback={null}>
+          <Scene
+            introStep={introStep}
+            nearbyTerminal={nearbyTerminal}
+            onNearTerminal={handleNearTerminal}
+            onLock={handleLock}
+            onUnlock={handleUnlock}
+            paused={isModalOpen}
+            isMobile={isMobile}
+            cameraRotRef={cameraRotRef}
+            moveInputRef={moveInputRef}
+            playerPosRef={playerPosRef}
+          />
+        </Suspense>
+      </Canvas>
+
+      {/* ---- MOBILE UI ---- */}
+      {isMobile && (
+        <>
+          {/* Tap-to-start overlay */}
+          {!isActive && !isModalOpen && (
+            <div
+              style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,5,0,0.92)',
+                zIndex: 200,
+              }}
+              onTouchStart={handleMobileStart}
+            >
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 5, background: 'linear-gradient(90deg, #c8a000, #ffd040, #c8a000)' }} />
+              <div style={{ color: '#c8a000', fontSize: 10, letterSpacing: 5, marginBottom: 18, opacity: 0.75 }}>VAULT-TEC CORPORATION</div>
+              <div style={{
+                color: '#ffd040', fontSize: 40, fontWeight: 'bold',
+                letterSpacing: 10, marginBottom: 4,
+                textShadow: '0 0 40px #ffd040, 0 0 80px #c8a00066',
+              }}>VAULT 63</div>
+              <div style={{ color: '#88aacc', fontSize: 11, letterSpacing: 6, marginBottom: 6 }}>CRYOGENIC LABORATORY</div>
+              <div style={{ color: '#445566', fontSize: 9, letterSpacing: 3, marginBottom: 50 }}>SANCTUARY HILLS · MASSACHUSETTS</div>
+              <div style={{
+                color: '#ffd040', fontSize: 14, letterSpacing: 4,
+                border: '2px solid #c8a000', padding: '14px 44px',
+                borderRadius: 2, background: 'rgba(200,160,0,0.08)',
+                boxShadow: '0 0 24px #c8a00033',
+                animation: 'pulseBtn 2s ease-in-out infinite',
+              }}>
+                TAP TO ENTER VAULT
+              </div>
+              <div style={{ color: '#445566', fontSize: 9, letterSpacing: 1, marginTop: 30, textAlign: 'center', lineHeight: 2.2 }}>
+                LEFT JOYSTICK — MOVE<br />
+                SWIPE RIGHT — LOOK<br />
+                TAP BUTTONS — INTERACT / PIP-BOY
+              </div>
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, #c8a000, #ffd040, #c8a000)' }} />
+            </div>
+          )}
+
+          {/* Mobile touch controls */}
+          {isActive && (
+            <MobileControls
+              cameraRotRef={cameraRotRef}
+              moveInputRef={moveInputRef}
+              nearbyTerminal={nearbyTerminal}
+              onInteract={handleInteract}
+              onPipBoy={handlePipBoy}
+              isModalOpen={isModalOpen}
+            />
+          )}
+
+          {/* Mobile vault badge (top center) */}
+          {showHUD && (
+            <div style={{
+              position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)',
+              background: 'rgba(0,10,0,0.75)', border: '1px solid #1a4a1a',
+              borderRadius: 3, padding: '4px 16px', textAlign: 'center', zIndex: 100, pointerEvents: 'none',
+            }}>
+              <div style={{ color: '#00ff44', fontSize: 11, fontWeight: 'bold', letterSpacing: 4 }}>VAULT 63</div>
+              <div style={{ color: '#00aa33', fontSize: 7, letterSpacing: 2 }}>CRYO LEVEL</div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ---- DESKTOP UI ---- */}
+      {!isMobile && (
+        <>
+          {/* Click-to-start overlay */}
+          {!isActive && !isModalOpen && (
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              background: hasStarted ? 'rgba(0,8,0,0.55)' : 'rgba(0,5,0,0.90)',
+              zIndex: 200, cursor: 'pointer',
+              transition: 'background 0.4s',
+            }}>
+              {!hasStarted ? (
+                <>
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 5, background: 'linear-gradient(90deg, #c8a000, #ffd040, #c8a000)' }} />
+                  <div style={{ color: '#c8a000', fontSize: 11, letterSpacing: 5, marginBottom: 18, opacity: 0.75 }}>VAULT-TEC CORPORATION</div>
+                  <div style={{
+                    color: '#ffd040', fontSize: 48, fontWeight: 'bold',
+                    letterSpacing: 12, marginBottom: 4,
+                    textShadow: '0 0 40px #ffd040, 0 0 90px #c8a00055',
+                  }}>VAULT 63</div>
+                  <div style={{ color: '#88aacc', fontSize: 13, letterSpacing: 7, marginBottom: 6 }}>CRYOGENIC LABORATORY — LEVEL 1</div>
+                  <div style={{ color: '#445566', fontSize: 10, letterSpacing: 3, marginBottom: 52 }}>SANCTUARY HILLS · MASSACHUSETTS · ESTABLISHED 2077</div>
+                  <div style={{
+                    color: '#ffd040', fontSize: 13, letterSpacing: 4,
+                    border: '2px solid #c8a000', padding: '12px 40px', borderRadius: 2,
+                    background: 'rgba(200,160,0,0.08)',
+                    boxShadow: '0 0 24px #c8a00033',
+                    animation: 'pulseBtn 2s ease-in-out infinite',
+                  }}>CLICK TO ENTER VAULT</div>
+                  <div style={{ color: '#445566', fontSize: 9, letterSpacing: 2, marginTop: 26, lineHeight: 2 }}>
+                    WASD — MOVE &nbsp;·&nbsp; MOUSE — LOOK &nbsp;·&nbsp; E — INTERACT &nbsp;·&nbsp; TAB — PIP-BOY
+                  </div>
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, #c8a000, #ffd040, #c8a000)' }} />
+                </>
+              ) : (
+                <>
+                  <div style={{ color: '#c8a000', fontSize: 13, letterSpacing: 4, marginBottom: 14 }}>
+                    POINTER LOCK RELEASED
+                  </div>
+                  <div style={{
+                    color: '#ffd040', fontSize: 12, letterSpacing: 3,
+                    border: '2px solid #c8a000', padding: '10px 30px', borderRadius: 2,
+                    background: 'rgba(200,160,0,0.08)',
+                  }}>CLICK TO RESUME</div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Desktop crosshair */}
+          {showHUD && <Crosshair nearbyTerminal={nearbyTerminal} />}
+
+          {/* Desktop — [E] prompt */}
+          {showHUD && nearbyTerminal && (
+            <div style={{
+              position: 'fixed', bottom: '10%', left: '50%', transform: 'translateX(-50%)',
+              background: 'rgba(0,12,0,0.9)', border: '1px solid #00aa33',
+              borderRadius: 3, padding: '7px 22px',
+              color: '#00ff44', fontSize: 12, letterSpacing: 3,
+              zIndex: 100, pointerEvents: 'none',
+            }}>[E] ACCESS TERMINAL</div>
+          )}
+
+          {/* Desktop controls hint */}
+          {showHUD && (
+            <div style={{
+              position: 'fixed', bottom: 16, left: 16,
+              background: 'rgba(0,10,0,0.75)', border: '1px solid #1a3a1a',
+              borderRadius: 3, padding: '7px 12px',
+              color: '#00aa33', fontSize: 9, lineHeight: 1.9, letterSpacing: 1, zIndex: 100,
+            }}>
+              <div style={{ color: '#00ff44', marginBottom: 2, letterSpacing: 2 }}>CONTROLS</div>
+              WASD / ARROWS — MOVE<br />
+              MOUSE — LOOK AROUND<br />
+              E — INTERACT WITH TERMINAL<br />
+              TAB — OPEN PIP-BOY<br />
+              ESC — RELEASE MOUSE
+            </div>
+          )}
+
+          {/* ── Live trading HUD ticker — top strip ── */}
+          {showHUD && trading.connected && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, zIndex: 150,
+              background: 'linear-gradient(90deg, #000d00, #001800, #000d00)',
+              borderBottom: '1px solid #1a4a1a',
+              display: 'flex', alignItems: 'center', gap: 0,
+              height: 28, overflow: 'hidden',
+              pointerEvents: 'none',
+            }}>
+              {/* Vault badge */}
+              <div style={{
+                flexShrink: 0, padding: '0 12px', borderRight: '1px solid #1a4a1a',
+                height: '100%', display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                <span style={{ color: '#ffd040', fontSize: 10, fontWeight: 'bold', letterSpacing: 3 }}>VAULT 63</span>
+                <span style={{ color: '#1a5a1a', fontSize: 8 }}>|</span>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: trading.status === 'ACTIVE' ? '#00ff88' : '#ff5555', boxShadow: `0 0 5px ${trading.status === 'ACTIVE' ? '#00ff88' : '#ff5555'}` }} />
+                <span style={{ color: trading.status === 'ACTIVE' ? '#00ff88' : '#ff5555', fontSize: 9, letterSpacing: 1 }}>{trading.status}</span>
+              </div>
+
+              {/* Equity */}
+              <div style={{ flexShrink: 0, padding: '0 12px', borderRight: '1px solid #1a4a1a', height: '100%', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: '#008833', fontSize: 8, letterSpacing: 1 }}>EQUITY</span>
+                <span style={{ color: '#00ff44', fontSize: 11, fontWeight: 'bold' }}>
+                  ${trading.equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {/* P&L */}
+              <div style={{ flexShrink: 0, padding: '0 12px', borderRight: '1px solid #1a4a1a', height: '100%', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: '#008833', fontSize: 8, letterSpacing: 1 }}>P&L</span>
+                <span style={{
+                  color: trading.pnlToday > 0 ? '#00ff88' : trading.pnlToday < 0 ? '#ff5555' : '#00aa44',
+                  fontSize: 11, fontWeight: 'bold',
+                }}>
+                  {trading.pnlToday >= 0 ? '+' : ''}${trading.pnlToday.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {/* Bot mode */}
+              <div style={{ flexShrink: 0, padding: '0 12px', borderRight: '1px solid #1a4a1a', height: '100%', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: '#008833', fontSize: 8, letterSpacing: 1 }}>MODE</span>
+                <span style={{ color: '#ffaa00', fontSize: 9, letterSpacing: 1 }}>{trading.botMode || trading.brain.mode}</span>
+              </div>
+
+              {/* Win rate */}
+              <div style={{ flexShrink: 0, padding: '0 12px', borderRight: '1px solid #1a4a1a', height: '100%', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: '#008833', fontSize: 8, letterSpacing: 1 }}>WIN RATE</span>
+                <span style={{ color: trading.memory.win_rate >= 0.5 ? '#00ff88' : '#ff5555', fontSize: 10, fontWeight: 'bold' }}>
+                  {(trading.memory.win_rate * 100).toFixed(1)}%
+                </span>
+              </div>
+
+              {/* Markets scrolling */}
+              {trading.markets.length > 0 && (
+                <div style={{ flex: 1, padding: '0 12px', height: '100%', display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                  <span style={{ color: '#008833', fontSize: 8, letterSpacing: 1, flexShrink: 0 }}>WATCHING</span>
+                  <span style={{ color: '#00ff44', fontSize: 9, letterSpacing: 1, opacity: 0.8, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                    {trading.markets.join('  ·  ')}
+                  </span>
+                </div>
+              )}
+
+              {/* Right: last update */}
+              <div style={{ flexShrink: 0, padding: '0 10px', height: '100%', display: 'flex', alignItems: 'center' }}>
+                <span style={{ color: '#1a4a1a', fontSize: 7 }}>{trading.lastUpdated}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Desktop Vault 63 badge (when not connected, show simpler badge) */}
+          {showHUD && !trading.connected && (
+            <div style={{
+              position: 'fixed', top: 16, right: 16,
+              background: 'rgba(0,10,0,0.8)', border: '1px solid #1a4a1a',
+              borderRadius: 3, padding: '5px 14px', textAlign: 'center', zIndex: 100,
+            }}>
+              <div style={{ color: '#00ff44', fontSize: 12, fontWeight: 'bold', letterSpacing: 4 }}>VAULT 63</div>
+              <div style={{ color: '#00aa33', fontSize: 8, letterSpacing: 2 }}>CRYO LEVEL</div>
+            </div>
+          )}
+
+          {/* Desktop Vault Girl companion widget — cryo tube style */}
+          {showHUD && (
+            <div style={{
+              position: 'fixed', bottom: 0, right: 0,
+              background: 'linear-gradient(135deg, transparent 0%, rgba(0,10,20,0.9) 50%)',
+              borderTop: '1px solid #0044aa44', borderLeft: '1px solid #0044aa44',
+              borderRadius: '12px 0 0 0',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexDirection: 'column', gap: 4, zIndex: 50,
+              padding: '10px 8px 8px',
+            }}>
+              <VaultGirl
+                direction="down"
+                walking={false}
+                introStep={3}
+                mood={trading.mood}
+                vaultState={trading.vaultState}
+                vaultLine={trading.vaultLine}
+              />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ---- SHARED HUD (both mobile & desktop) ---- */}
+
+      {/* Day counter — top left */}
+      <DayCounter visible={showHUD} />
+
+      {/* Radiation scanner — bottom right (desktop) / top right (mobile) */}
+      <div style={isMobile ? {
+        position: 'fixed', top: 52, right: 8,
+      } : {}}>
+        <RadiationScanner playerPosRef={playerPosRef} visible={showHUD} />
+      </div>
+
+      {/* Intro cinematic text */}
+      {introStep < 2 && (
+        <div style={{
+          position: 'fixed', top: '28%', left: '50%',
+          transform: 'translateX(-50%)',
+          textAlign: 'center', pointerEvents: 'none', zIndex: 300,
+        }}>
+          {introStep === 0 && (
+            <div style={{ color: '#1a4a8a', fontSize: isMobile ? 11 : 14, letterSpacing: 4 }}>
+              CRYOGENIC STASIS SYSTEM — VAULT 63
+            </div>
+          )}
+          {introStep === 1 && (
+            <div style={{ color: '#00aaff', fontSize: isMobile ? 11 : 14, letterSpacing: 3, textShadow: '0 0 15px #00aaff' }}>
+              EMERGENCY OVERRIDE — THAWING SUBJECT...
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PipBoy modal */}
+      <PipBoy
+        open={pipBoyOpen}
+        screen={pipBoyScreen}
+        onChangeScreen={setPipBoyScreen}
+        onClose={() => setPipBoyOpen(false)}
+        tradingData={trading}
+        apiUrl={trading.apiUrl}
+        setApiUrl={trading.setApiUrl}
+      />
+
+      {/* Terminal modal */}
+      <TerminalModal
+        terminalId={activeTerminal}
+        onClose={() => setActiveTerminal(null)}
+        tradingData={trading}
+      />
+
+      <style>{`
+        @keyframes pulseBtn {
+          0%, 100% { box-shadow: 0 0 20px #00ff4422; }
+          50% { box-shadow: 0 0 30px #00ff4466, 0 0 50px #00ff4422; }
+        }
+        * { -webkit-tap-highlight-color: transparent; }
+      `}</style>
+    </div>
+  );
+}
+
+export function Game() {
+  if (!checkWebGL()) return <NoWebGL />;
+  return <VaultGame />;
+}
