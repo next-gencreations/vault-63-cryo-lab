@@ -44,6 +44,7 @@ function VaultGame() {
   const [activeTerminal, setActiveTerminal] = useState<string | null>(null);
   const [pipBoyOpen, setPipBoyOpen] = useState(false);
   const [pipBoyScreen, setPipBoyScreen] = useState<PipBoyScreen>('STAT');
+  const [currentRoom, setCurrentRoom] = useState('cryolab');
 
   // Live trading data — drives Pip-Boy TRADE screen, terminal, and vault girl mood
   const trading = useTradingData(8_000);
@@ -84,6 +85,7 @@ function VaultGame() {
   const handleLock = useCallback(() => { setIsActive(true); setHasStarted(true); }, []);
   const handleUnlock = useCallback(() => setIsActive(false), []);
   const handleNearTerminal = useCallback((id: string | null) => setNearbyTerminal(id), []);
+  const handleRoomChange = useCallback((room: string) => setCurrentRoom(room), []);
 
   const handleMobileStart = () => {
     setIsActive(true);
@@ -133,6 +135,7 @@ function VaultGame() {
             onNearTerminal={handleNearTerminal}
             onLock={handleLock}
             onUnlock={handleUnlock}
+            onRoomChange={handleRoomChange}
             paused={isModalOpen}
             isMobile={isMobile}
             cameraRotRef={cameraRotRef}
@@ -393,6 +396,7 @@ function VaultGame() {
                 mood={trading.mood}
                 vaultState={trading.vaultState}
                 vaultLine={trading.vaultLine}
+                currentRoom={currentRoom}
               />
             </div>
           )}

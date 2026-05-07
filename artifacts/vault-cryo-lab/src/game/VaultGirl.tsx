@@ -8,6 +8,7 @@ interface Props {
   mood?: VaultGirlMood;
   vaultState?: string;
   vaultLine?: string;
+  currentRoom?: string;
 }
 
 const MOOD_IMG: Record<VaultGirlMood, string> = {
@@ -60,7 +61,33 @@ const MOOD_TEMP: Record<VaultGirlMood, string> = {
   zombie:   '+4°C',
 };
 
-export function VaultGirl({ direction: _direction, walking: _walking, introStep, mood = 'idle', vaultState }: Props) {
+const ROOM_BADGE: Record<string, { label: string; color: string; icon: string }> = {
+  cryolab:   { label: 'CRYO BAY',     color: '#00aaff', icon: '❄' },
+  garden:    { label: 'HYDROPONICS',  color: '#44ff88', icon: '🌿' },
+  generator: { label: 'REACTOR CORE', color: '#ff6600', icon: '⚡' },
+  corridor:  { label: 'CORRIDOR',     color: '#aaaaaa', icon: '→'  },
+};
+
+function getRoomComment(room: string, mood: VaultGirlMood): string | null {
+  if (room === 'garden') {
+    if (mood === 'happy' || mood === 'thriving') return 'PLANTS THRIVING';
+    if (mood === 'zombie' || mood === 'sick')    return 'GARDEN WILTING';
+    if (mood === 'cryo')                         return 'GROW LIGHTS OFF';
+    return 'HYDROPONICS SURVEY';
+  }
+  if (room === 'generator') {
+    if (mood === 'happy' || mood === 'thriving') return 'REACTOR FUELED';
+    if (mood === 'zombie' || mood === 'sick')    return 'REACTOR UNSTABLE';
+    if (mood === 'cryo')                         return 'GENERATOR OFFLINE';
+    return 'POWER MONITORING';
+  }
+  return null;
+}
+
+export function VaultGirl({
+  direction: _direction, walking: _walking, introStep,
+  mood = 'idle', vaultState, currentRoom = 'cryolab',
+}: Props) {
   const opacity    = introStep < 2 ? 0 : introStep < 3 ? 0.7 : 1;
   const pulseClass = MOOD_PULSE[mood];
   const glow       = MOOD_GLOW[mood];
@@ -73,8 +100,29 @@ export function VaultGirl({ direction: _direction, walking: _walking, introStep,
 
   const statusColor = isAlert ? '#ff4444' : isGood ? '#00ff88' : isCryo ? '#44aaff' : '#00cc66';
 
+  const badge       = ROOM_BADGE[currentRoom] ?? ROOM_BADGE.cryolab;
+  const roomComment = getRoomComment(currentRoom, mood);
+
   return (
     <div style={{ opacity, transition: 'opacity 1s', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+
+      {/* ── Location badge (floats above pod) ── */}
+      <div style={{
+        width: 132,
+        background: `linear-gradient(90deg, ${badge.color}22, ${badge.color}44, ${badge.color}22)`,
+        border: `1px solid ${badge.color}66`,
+        borderRadius: '4px 4px 0 0',
+        padding: '2px 6px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: -1,
+      }}>
+        <span style={{ color: badge.color, fontSize: 6.5, letterSpacing: 2, fontFamily: 'monospace', fontWeight: 'bold' }}>
+          {badge.label}
+        </span>
+        <span style={{ fontSize: 8 }}>{badge.icon}</span>
+      </div>
 
       {/* ── Pod header ── */}
       <div style={{
@@ -82,7 +130,6 @@ export function VaultGirl({ direction: _direction, walking: _walking, introStep,
         background: 'linear-gradient(90deg, #001a2a, #002a3a, #001a2a)',
         border: '1px solid #0066aa',
         borderBottom: 'none',
-        borderRadius: '6px 6px 0 0',
         padding: '3px 6px',
         display: 'flex',
         justifyContent: 'space-between',
@@ -186,19 +233,20 @@ export function VaultGirl({ direction: _direction, walking: _walking, introStep,
           <span style={{ color: '#2266aa', fontSize: 6, letterSpacing: 1 }}>VAULT GIRL</span>
           <span style={{ color: '#2266aa', fontSize: 6 }}>V-63</span>
         </div>
-        {vaultState && (
+        {/* Room-specific comment or vaultState */}
+        {(roomComment || vaultState) && (
           <div style={{
-            color: statusColor + 'cc',
+            color: roomComment ? (badge.color + 'cc') : (statusColor + 'cc'),
             fontSize: 6,
             letterSpacing: 0.5,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
           }}>
-            {vaultState}
+            {roomComment ?? vaultState}
           </div>
         )}
-        <div style={{ color: '#223344', fontSize: 6 }}>TAB → PIP-BOY</div>
+        <div style={{ color: '#223344', fontSize: 6 }}>TAB → PIP-BOY  ·  SHIFT → SPRINT</div>
       </div>
 
       <style>{`
