@@ -161,17 +161,20 @@ export function GeneratorRoom() {
   return (
     <group>
       {/* ── Lighting ── */}
-      <ambientLight intensity={0.4} color="#1a1000" />
-      <hemisphereLight args={['#221800', '#110c00', 0.6]} />
-      {/* Overhead fluorescents — dim, industrial */}
-      <pointLight position={[CX - 8, 5.3, -6]} color="#cc8800" intensity={4} distance={16} decay={2} />
-      <pointLight position={[CX,     5.3, 0]}  color="#cc8800" intensity={4} distance={16} decay={2} />
-      <pointLight position={[CX + 8, 5.3,  6]} color="#cc8800" intensity={4} distance={16} decay={2} />
+      <ambientLight intensity={2.5} color="#332200" />
+      <hemisphereLight args={['#443300', '#221800', 2.0]} />
+      {/* Overhead fluorescents — industrial amber */}
+      <pointLight position={[CX - 8, 5.3, -6]} color="#ffaa44" intensity={14} distance={22} decay={2} />
+      <pointLight position={[CX,     5.3, 0]}  color="#ffaa44" intensity={14} distance={22} decay={2} />
+      <pointLight position={[CX + 8, 5.3,  6]} color="#ffaa44" intensity={14} distance={22} decay={2} />
+      {/* Additional fill lights */}
+      <pointLight position={[CX - 8, 5.3,  6]} color="#ff8833" intensity={10} distance={20} decay={2} />
+      <pointLight position={[CX + 8, 5.3, -6]} color="#ff8833" intensity={10} distance={20} decay={2} />
       {/* Red emergency lights */}
-      <pointLight position={[CX - 12, 1.2, -12]} color="#ff2200" intensity={2} distance={10} decay={2} />
-      <pointLight position={[CX + 12, 1.2,  12]} color="#ff2200" intensity={2} distance={10} decay={2} />
-      <pointLight position={[CX - 12, 1.2,  12]} color="#ff4400" intensity={1.5} distance={8} decay={2} />
-      <pointLight position={[CX + 12, 1.2, -12]} color="#ff4400" intensity={1.5} distance={8} decay={2} />
+      <pointLight position={[CX - 12, 1.2, -12]} color="#ff2200" intensity={5} distance={14} decay={2} />
+      <pointLight position={[CX + 12, 1.2,  12]} color="#ff2200" intensity={5} distance={14} decay={2} />
+      <pointLight position={[CX - 12, 1.2,  12]} color="#ff4400" intensity={4} distance={12} decay={2} />
+      <pointLight position={[CX + 12, 1.2, -12]} color="#ff4400" intensity={4} distance={12} decay={2} />
 
       {/* ── Floor ── */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[CX, 0.005, 0]}>

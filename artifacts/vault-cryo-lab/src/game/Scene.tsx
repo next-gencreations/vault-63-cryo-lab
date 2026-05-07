@@ -28,44 +28,46 @@ export function Scene({
   return (
     <>
       {/* ── Main cryo lab lights ── */}
-      <ambientLight intensity={1.1} color="#d8e8f0" />
+      <ambientLight intensity={3.0} color="#d8e8f0" />
 
-      <pointLight position={[0,  5.4, -8]} color="#d8f0ff" intensity={8.0} distance={22} decay={2} />
-      <pointLight position={[-7, 5.4, -8]} color="#c8e4ff" intensity={6.0} distance={18} decay={2} />
-      <pointLight position={[7,  5.4, -8]} color="#c8e4ff" intensity={6.0} distance={18} decay={2} />
-      <pointLight position={[0,  5.4, 0]}  color="#d8f0ff" intensity={8.0} distance={22} decay={2} />
-      <pointLight position={[-7, 5.4, 0]}  color="#c8e4ff" intensity={6.0} distance={18} decay={2} />
-      <pointLight position={[7,  5.4, 0]}  color="#c8e4ff" intensity={6.0} distance={18} decay={2} />
-      <pointLight position={[0,  5.4, 8]}  color="#d8f0ff" intensity={8.0} distance={22} decay={2} />
-      <pointLight position={[-7, 5.4, 8]}  color="#c8e4ff" intensity={6.0} distance={18} decay={2} />
-      <pointLight position={[7,  5.4, 8]}  color="#c8e4ff" intensity={6.0} distance={18} decay={2} />
+      <pointLight position={[0,  5.4, -8]} color="#d8f0ff" intensity={14} distance={26} decay={2} />
+      <pointLight position={[-7, 5.4, -8]} color="#c8e4ff" intensity={10} distance={22} decay={2} />
+      <pointLight position={[7,  5.4, -8]} color="#c8e4ff" intensity={10} distance={22} decay={2} />
+      <pointLight position={[0,  5.4, 0]}  color="#d8f0ff" intensity={14} distance={26} decay={2} />
+      <pointLight position={[-7, 5.4, 0]}  color="#c8e4ff" intensity={10} distance={22} decay={2} />
+      <pointLight position={[7,  5.4, 0]}  color="#c8e4ff" intensity={10} distance={22} decay={2} />
+      <pointLight position={[0,  5.4, 8]}  color="#d8f0ff" intensity={14} distance={26} decay={2} />
+      <pointLight position={[-7, 5.4, 8]}  color="#c8e4ff" intensity={10} distance={22} decay={2} />
+      <pointLight position={[7,  5.4, 8]}  color="#c8e4ff" intensity={10} distance={22} decay={2} />
 
-      <pointLight position={[-12, 3, -12]} color="#aaccee" intensity={4.0} distance={18} decay={2} />
-      <pointLight position={[12,  3, -12]} color="#aaccee" intensity={4.0} distance={18} decay={2} />
-      <pointLight position={[-12, 3, 12]}  color="#aaccee" intensity={4.0} distance={18} decay={2} />
-      <pointLight position={[12,  3, 12]}  color="#aaccee" intensity={4.0} distance={18} decay={2} />
+      <pointLight position={[-12, 3, -12]} color="#aaccee" intensity={7} distance={22} decay={2} />
+      <pointLight position={[12,  3, -12]} color="#aaccee" intensity={7} distance={22} decay={2} />
+      <pointLight position={[-12, 3, 12]}  color="#aaccee" intensity={7} distance={22} decay={2} />
+      <pointLight position={[12,  3, 12]}  color="#aaccee" intensity={7} distance={22} decay={2} />
 
-      <pointLight position={[0,  2.5, -13]} color="#c0d8f0" intensity={3.0} distance={12} decay={2} />
-      <pointLight position={[0,  2.5, 13]}  color="#c0d8f0" intensity={3.0} distance={12} decay={2} />
-      <pointLight position={[-13, 2.5, 0]}  color="#c0d8f0" intensity={3.0} distance={12} decay={2} />
-      <pointLight position={[13,  2.5, 0]}  color="#c0d8f0" intensity={3.0} distance={12} decay={2} />
+      <pointLight position={[0,  2.5, -13]} color="#c0d8f0" intensity={5} distance={16} decay={2} />
+      <pointLight position={[0,  2.5, 13]}  color="#c0d8f0" intensity={5} distance={16} decay={2} />
+      <pointLight position={[-13, 2.5, 0]}  color="#c0d8f0" intensity={5} distance={16} decay={2} />
+      <pointLight position={[13,  2.5, 0]}  color="#c0d8f0" intensity={5} distance={16} decay={2} />
 
-      <pointLight position={[0, 1.1, -13]}  color="#ffd040" intensity={1.4} distance={12} decay={2} />
-      <pointLight position={[0, 1.1, 13]}   color="#ffd040" intensity={1.4} distance={12} decay={2} />
-      <pointLight position={[-13, 1.1, 0]}  color="#ffd040" intensity={1.4} distance={12} decay={2} />
-      <pointLight position={[13, 1.1, 0]}   color="#ffd040" intensity={1.4} distance={12} decay={2} />
+      <pointLight position={[0, 1.1, -13]}  color="#ffd040" intensity={2.5} distance={14} decay={2} />
+      <pointLight position={[0, 1.1, 13]}   color="#ffd040" intensity={2.5} distance={14} decay={2} />
+      <pointLight position={[-13, 1.1, 0]}  color="#ffd040" intensity={2.5} distance={14} decay={2} />
+      <pointLight position={[13, 1.1, 0]}   color="#ffd040" intensity={2.5} distance={14} decay={2} />
 
-      <pointLight position={[13, 0.5, 4]}    color="#ff4400" intensity={1.4} distance={7}  decay={2} />
-      <pointLight position={[-12, 0.5, -8]}  color="#00ffaa" intensity={0.9} distance={6}  decay={2} />
-      <pointLight position={[12, 0.5, -8]}   color="#ffaa00" intensity={0.9} distance={6}  decay={2} />
+      <pointLight position={[13, 0.5, 4]}    color="#ff4400" intensity={2.5} distance={9}  decay={2} />
+      <pointLight position={[-12, 0.5, -8]}  color="#00ffaa" intensity={1.8} distance={8}  decay={2} />
+      <pointLight position={[12, 0.5, -8]}   color="#ffaa00" intensity={1.8} distance={8}  decay={2} />
 
-      {/* Corridor lights — west (garden) */}
-      <pointLight position={[-18, 4.5, 0]} color="#44ff88" intensity={3} distance={10} decay={2} />
+      {/* Corridor lights — west (garden) — brighter, wider reach */}
+      <pointLight position={[-15, 4.5, 0]} color="#44ff88" intensity={10} distance={14} decay={2} />
+      <pointLight position={[-19, 4.0, 0]} color="#66ffaa" intensity={8}  distance={12} decay={2} />
       {/* Corridor lights — east (generator) */}
-      <pointLight position={[18, 4.5, 0]}  color="#ffaa44" intensity={3} distance={10} decay={2} />
+      <pointLight position={[15, 4.5, 0]}  color="#ffaa44" intensity={10} distance={14} decay={2} />
+      <pointLight position={[19, 4.0, 0]}  color="#ffcc66" intensity={8}  distance={12} decay={2} />
 
-      {/* Fog — extended for multi-room world */}
-      <fog attach="fog" args={['#0a1018', 28, 80]} />
+      {/* Fog — pushed far enough to see into new rooms */}
+      <fog attach="fog" args={['#0a1018', 44, 140]} />
 
       <Suspense fallback={null}>
         <Room />

@@ -125,7 +125,7 @@ function VaultGame() {
       {/* 3D Canvas */}
       <Canvas
         camera={{ fov: isMobile ? 80 : 75, near: 0.1, far: 100 }}
-        gl={{ antialias: true, toneMapping: 3, toneMappingExposure: 0.9 }}
+        gl={{ antialias: true, toneMapping: 1, toneMappingExposure: 1.4 }}
         style={{ width: '100%', height: '100%', display: 'block' }}
       >
         <Suspense fallback={null}>

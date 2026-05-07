@@ -146,22 +146,26 @@ export function GardenRoom() {
   return (
     <group>
       {/* ── Lighting ── */}
-      <ambientLight intensity={0.6} color="#223322" />
-      <hemisphereLight args={['#224422', '#112211', 0.8]} />
+      <ambientLight intensity={2.8} color="#334433" />
+      <hemisphereLight args={['#446644', '#223322', 2.2]} />
       {/* UV grow lights along ceiling */}
-      <pointLight position={[CX - 8, 5.2, -6]} color="#9900ff" intensity={5} distance={14} decay={2} />
-      <pointLight position={[CX,     5.2, -6]} color="#9900ff" intensity={5} distance={14} decay={2} />
-      <pointLight position={[CX + 8, 5.2, -6]} color="#9900ff" intensity={5} distance={14} decay={2} />
-      <pointLight position={[CX - 8, 5.2,  6]} color="#9900ff" intensity={5} distance={14} decay={2} />
-      <pointLight position={[CX,     5.2,  6]} color="#9900ff" intensity={5} distance={14} decay={2} />
-      <pointLight position={[CX + 8, 5.2,  6]} color="#9900ff" intensity={5} distance={14} decay={2} />
+      <pointLight position={[CX - 8, 5.2, -6]} color="#cc66ff" intensity={14} distance={20} decay={2} />
+      <pointLight position={[CX,     5.2, -6]} color="#cc66ff" intensity={14} distance={20} decay={2} />
+      <pointLight position={[CX + 8, 5.2, -6]} color="#cc66ff" intensity={14} distance={20} decay={2} />
+      <pointLight position={[CX - 8, 5.2,  6]} color="#cc66ff" intensity={14} distance={20} decay={2} />
+      <pointLight position={[CX,     5.2,  6]} color="#cc66ff" intensity={14} distance={20} decay={2} />
+      <pointLight position={[CX + 8, 5.2,  6]} color="#cc66ff" intensity={14} distance={20} decay={2} />
+      {/* White overhead fill lights */}
+      <pointLight position={[CX - 8, 5.5, 0]} color="#ccffee" intensity={10} distance={22} decay={2} />
+      <pointLight position={[CX,     5.5, 0]} color="#ccffee" intensity={10} distance={22} decay={2} />
+      <pointLight position={[CX + 8, 5.5, 0]} color="#ccffee" intensity={10} distance={22} decay={2} />
       {/* Green ambient from plants */}
-      <pointLight position={[CX, 1.5,  0]} color="#00ff44" intensity={2} distance={16} decay={2} />
-      <pointLight position={[CX, 1.5, -8]} color="#00cc44" intensity={1.5} distance={12} decay={2} />
-      <pointLight position={[CX, 1.5,  8]} color="#00cc44" intensity={1.5} distance={12} decay={2} />
+      <pointLight position={[CX, 1.5,  0]} color="#00ff44" intensity={5} distance={20} decay={2} />
+      <pointLight position={[CX, 1.5, -8]} color="#00cc44" intensity={4} distance={16} decay={2} />
+      <pointLight position={[CX, 1.5,  8]} color="#00cc44" intensity={4} distance={16} decay={2} />
       {/* Water tank glow */}
-      <pointLight position={[CX - 12, 1.5, -12]} color="#00ddaa" intensity={1.5} distance={8} decay={2} />
-      <pointLight position={[CX + 12, 1.5,  12]} color="#00ddaa" intensity={1.5} distance={8} decay={2} />
+      <pointLight position={[CX - 12, 1.5, -12]} color="#00ddaa" intensity={3} distance={12} decay={2} />
+      <pointLight position={[CX + 12, 1.5,  12]} color="#00ddaa" intensity={3} distance={12} decay={2} />
 
       {/* ── Floor ── */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[CX, 0.005, 0]}>
