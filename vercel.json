@@ -1,7 +1,7 @@
 {
   "buildCommand": "pnpm --filter @workspace/vault-cryo-lab run build",
   "outputDirectory": "artifacts/vault-cryo-lab/dist/public",
-  "installCommand": "pnpm install",
+  "installCommand": "pnpm install --no-frozen-lockfile",
   "framework": null,
   "env": {
     "PORT": "3000",
