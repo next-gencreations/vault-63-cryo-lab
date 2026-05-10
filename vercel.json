@@ -1,11 +1,10 @@
 {
-  "framework": "vite",
-  "buildCommand": "vite build",
-  "outputDirectory": "dist",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
+  "buildCommand": "pnpm --filter @workspace/vault-cryo-lab run build",
+  "outputDirectory": "artifacts/vault-cryo-lab/dist/public",
+  "installCommand": "pnpm install",
+  "framework": null,
+  "env": {
+    "PORT": "3000",
+    "BASE_PATH": "/"
+  }
 }
