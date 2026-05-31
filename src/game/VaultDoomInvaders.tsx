@@ -1,24 +1,7 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { TradingData } from './useTradingData';
 
-
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-
-type TradingData = {
-  equity?: number;
-  todayPnl?: number;
-  pnlToday?: number;
-  dailyPnl?: number;
-  positions?: number;
-  activePositions?: number;
-  lossStreak?: number;
-  winRate?: number;
-  memoryTrades?: number;
-  wins?: number;
-  losses?: number;
-  brainMode?: string;
-  avoidMode?: boolean | string;
-};
-
-type InvaderType = 'FUD_RAIDER' | 'LIQUIDATION_GHOUL' | 'WHALE_THIEF' | 'RUG_PULL_BOSS';
+type InvaderType = 'FUD RAIDER' | 'WHALE THIEF' | 'LIQUIDATION GHOUL' | 'RUG PULL BOSS';
 
 type Invader = {
   id: string;
@@ -28,592 +11,225 @@ type Invader = {
   hp: number;
   maxHp: number;
   speed: number;
-  stealPower: number;
+  steal: number;
   size: number;
-  glow: string;
+  color: string;
 };
 
-type VaultDoomInvadersProps = {
-  tradingData?: TradingData | null;
-  room?: string;
-  visible?: boolean;
-};
-
-function getTodayPnl(data?: TradingData | null): number {
-  if (!data) return 0;
-  return Number(data.todayPnl ?? data.pnlToday ?? data.dailyPnl ?? 0);
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  tradingData: TradingData;
 }
 
-function getPositions(data?: TradingData | null): number {
-  if (!data) return 0;
-  return Number(data.positions ?? data.activePositions ?? 0);
-}
-
-function getLossStreak(data?: TradingData | null): number {
-  if (!data) return 0;
-  return Number(data.lossStreak ?? 0);
-}
-
-function getWinRate(data?: TradingData | null): number {
-  if (!data) return 0;
-  return Number(data.winRate ?? 0);
-}
+const LEVELS = [
+  'LEVEL 1 · CRYO BAY',
+  'LEVEL 2 · BOTANICAL LAB',
+  'LEVEL 3 · SHOWER / BEDROOM BLOCK',
+  'LEVEL 4 · MAIN VAULT TREASURY',
+];
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-function makeInvader(type: InvaderType, difficulty: number): Invader {
-  const id = `${type}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+function money(n: number) {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function makeInvader(difficulty: number, profit: number, lossStreak: number): Invader {
+  const roll = Math.random();
+  let type: InvaderType = 'FUD RAIDER';
+  if (lossStreak >= 4 && roll > 0.7) type = 'RUG PULL BOSS';
+  else if (profit > 10 && roll > 0.55) type = 'WHALE THIEF';
+  else if (lossStreak >= 2 && roll > 0.45) type = 'LIQUIDATION GHOUL';
+
   const fromLeft = Math.random() > 0.5;
-
-  if (type === 'RUG_PULL_BOSS') {
-    return {
-      id,
-      type,
-      x: fromLeft ? -8 : 108,
-      y: 38 + Math.random() * 22,
-      hp: 160 + difficulty * 22,
-      maxHp: 160 + difficulty * 22,
-      speed: 0.08 + difficulty * 0.015,
-      stealPower: 12 + difficulty * 2,
-      size: 46,
-      glow: '#ff0033',
-    };
-  }
-
-  if (type === 'WHALE_THIEF') {
-    return {
-      id,
-      type,
-      x: fromLeft ? -8 : 108,
-      y: 35 + Math.random() * 30,
-      hp: 90 + difficulty * 12,
-      maxHp: 90 + difficulty * 12,
-      speed: 0.10 + difficulty * 0.018,
-      stealPower: 8 + difficulty,
-      size: 36,
-      glow: '#00aaff',
-    };
-  }
-
-  if (type === 'LIQUIDATION_GHOUL') {
-    return {
-      id,
-      type,
-      x: fromLeft ? -8 : 108,
-      y: 30 + Math.random() * 38,
-      hp: 48 + difficulty * 8,
-      maxHp: 48 + difficulty * 8,
-      speed: 0.22 + difficulty * 0.04,
-      stealPower: 4 + difficulty,
-      size: 28,
-      glow: '#ffaa00',
-    };
-  }
-
-  return {
-    id,
-    type,
+  const base = {
+    id: `${type}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
     x: fromLeft ? -8 : 108,
-    y: 30 + Math.random() * 40,
-    hp: 35 + difficulty * 6,
-    maxHp: 35 + difficulty * 6,
-    speed: 0.16 + difficulty * 0.025,
-    stealPower: 2 + difficulty * 0.5,
-    size: 24,
-    glow: '#39ff14',
+    y: 22 + Math.random() * 54,
   };
+
+  if (type === 'RUG PULL BOSS') return { ...base, type, hp: 180 + difficulty * 18, maxHp: 180 + difficulty * 18, speed: .10 + difficulty * .01, steal: 18 + difficulty, size: 54, color: '#ff2255' };
+  if (type === 'WHALE THIEF') return { ...base, type, hp: 90 + difficulty * 10, maxHp: 90 + difficulty * 10, speed: .13 + difficulty * .015, steal: 9 + difficulty, size: 42, color: '#00aaff' };
+  if (type === 'LIQUIDATION GHOUL') return { ...base, type, hp: 58 + difficulty * 8, maxHp: 58 + difficulty * 8, speed: .24 + difficulty * .025, steal: 6 + difficulty, size: 34, color: '#ffaa00' };
+  return { ...base, type, hp: 42 + difficulty * 5, maxHp: 42 + difficulty * 5, speed: .18 + difficulty * .02, steal: 3 + difficulty * .5, size: 28, color: '#39ff14' };
 }
 
-function invaderLabel(type: InvaderType) {
-  switch (type) {
-    case 'FUD_RAIDER': return 'FUD RAIDER';
-    case 'LIQUIDATION_GHOUL': return 'LIQUIDATION GHOUL';
-    case 'WHALE_THIEF': return 'WHALE THIEF';
-    case 'RUG_PULL_BOSS': return 'RUG PULL BOSS';
-    default: return 'INVADER';
-  }
-}
-
-export default function VaultDoomInvaders({ tradingData, room = 'LAB FLOOR', visible = true }: VaultDoomInvadersProps) {
+export function VaultDoomInvaders({ open, onClose, tradingData }: Props) {
   const [invaders, setInvaders] = useState<Invader[]>([]);
   const [health, setHealth] = useState(100);
   const [armor, setArmor] = useState(50);
-  const [ammo, setAmmo] = useState(80);
+  const [ammo, setAmmo] = useState(90);
   const [kills, setKills] = useState(0);
   const [stolen, setStolen] = useState(0);
-  const [vaultShield, setVaultShield] = useState(100);
-  const [message, setMessage] = useState('VAULT DEFENCE ONLINE');
-  const [muzzleFlash, setMuzzleFlash] = useState(false);
+  const [shield, setShield] = useState(100);
+  const [message, setMessage] = useState('VAULT DEFENCE ONLINE · PROFITS ATTRACT RAIDERS');
+  const [flash, setFlash] = useState(false);
   const arenaRef = useRef<HTMLDivElement | null>(null);
 
-  const todayPnl = getTodayPnl(tradingData);
-  const lossStreak = getLossStreak(tradingData);
-  const winRate = getWinRate(tradingData);
-  const positions = getPositions(tradingData);
-  const equity = Number(tradingData?.equity ?? 0);
+  const pnl = tradingData.pnlToday;
+  const equity = tradingData.equity;
+  const lossStreak = tradingData.lossStreak;
 
   const difficulty = useMemo(() => {
-    const profitHeat = todayPnl > 0 ? Math.min(5, todayPnl / 25) : 0;
-    const lossHeat = lossStreak * 1.5;
-    const activeHeat = positions * 0.75;
-    return clamp(1 + profitHeat + lossHeat + activeHeat, 1, 12);
-  }, [todayPnl, lossStreak, positions]);
+    const profitHeat = pnl > 0 ? Math.min(6, pnl / 15) : 0;
+    const lossHeat = lossStreak * 1.35;
+    const positionHeat = tradingData.openPositions * 0.75;
+    return clamp(1 + profitHeat + lossHeat + positionHeat, 1, 12);
+  }, [pnl, lossStreak, tradingData.openPositions]);
 
-  const vaultGirlState = useMemo(() => {
-    if (lossStreak >= 4) return 'ZOMBIE PROTECTION';
-    if (todayPnl < -25) return 'SICK';
-    if (todayPnl < 0) return 'WEAK';
-    if (todayPnl > 10) return 'THRIVING';
-    return 'PATIENT';
-  }, [todayPnl, lossStreak]);
+  const levelIndex = clamp(Math.floor((difficulty - 1) / 3), 0, LEVELS.length - 1);
+  const levelName = LEVELS[levelIndex];
 
   const vaultGirlDamage = useMemo(() => {
-    const winBonus = winRate > 0 ? winRate / 10 : 0;
-    const moodBonus = vaultGirlState === 'THRIVING' ? 15 : vaultGirlState === 'SICK' ? -8 : 0;
-    return clamp(28 + winBonus + moodBonus, 12, 55);
-  }, [winRate, vaultGirlState]);
+    const winBonus = tradingData.memory.win_rate > 0 ? tradingData.memory.win_rate * 20 : 0;
+    const moodBonus = tradingData.mood === 'thriving' || tradingData.mood === 'happy' ? 12 : tradingData.mood === 'sick' ? -8 : 0;
+    return clamp(30 + winBonus + moodBonus, 16, 62);
+  }, [tradingData.memory.win_rate, tradingData.mood]);
 
   useEffect(() => {
-    if (!visible) return;
-    const spawnTimer = window.setInterval(() => {
-      setInvaders((current) => {
-        const maxInvaders = clamp(Math.floor(2 + difficulty), 3, 12);
-        if (current.length >= maxInvaders) return current;
-
-        let type: InvaderType = 'FUD_RAIDER';
-        const roll = Math.random();
-
-        if (lossStreak >= 4 && roll > 0.72) type = 'RUG_PULL_BOSS';
-        else if (todayPnl > 20 && roll > 0.68) type = 'WHALE_THIEF';
-        else if (lossStreak >= 2 && roll > 0.50) type = 'LIQUIDATION_GHOUL';
-        else if (roll > 0.78) type = 'WHALE_THIEF';
-
-        const next = makeInvader(type, difficulty);
-        return [...current, next];
+    if (!open) return;
+    const spawn = window.setInterval(() => {
+      setInvaders(current => {
+        const max = clamp(Math.floor(3 + difficulty), 4, 12);
+        if (current.length >= max) return current;
+        return [...current, makeInvader(difficulty, pnl, lossStreak)];
       });
-    }, Math.max(900, 3200 - difficulty * 180));
+    }, Math.max(800, 3000 - difficulty * 170));
+    return () => window.clearInterval(spawn);
+  }, [open, difficulty, pnl, lossStreak]);
 
-#f76969;
-
-    setInvaders((current) => {
-      if (current.length === 0) {
-        setMessage('SHOT FIRED - NO TARGET');
-        return current;
-      }
-
-      let bestIndex = -1;
-      let bestDistance = Infinity;
-
-      current.forEach((enemy, index) => {
-        const dx = enemy.x - targetX;
-        const dy = enemy.y - targetY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < bestDistance) {
-          bestDistance = dist;
-          bestIndex = index;
+  useEffect(() => {
+    if (!open) return;
+    const tick = window.setInterval(() => {
+      setInvaders(current => {
+        let damage = 0;
+        let stolenNow = 0;
+        const next = current.map(enemy => {
+          const dir = enemy.x < 50 ? 1 : -1;
+          const nx = enemy.x + dir * enemy.speed * (1 + difficulty / 10);
+          if (Math.abs(nx - 50) < 3) {
+            damage += enemy.steal;
+            stolenNow += enemy.steal;
+            return { ...enemy, x: enemy.x < 50 ? -10 : 110, y: 22 + Math.random() * 54 };
+          }
+          return { ...enemy, x: nx };
+        });
+        if (damage > 0) {
+          setShield(s => clamp(s - damage * .7, 0, 100));
+          setArmor(a => clamp(a - damage * .25, 0, 100));
+          setHealth(h => clamp(h - Math.max(0, damage - armor * .05), 0, 100));
+          setStolen(v => v + stolenNow);
+          setMessage(`INVADERS TOUCHED VAULT CORE · ${money(stolenNow)} STOLEN`);
         }
+        return next;
       });
+    }, 80);
+    return () => window.clearInterval(tick);
+  }, [open, difficulty, armor]);
 
-      if (bestIndex === -1 || bestDistance > 20) {
-        setMessage('MISSED - INVADERS STILL MOVING');
+  const fireAt = (clientX?: number, clientY?: number) => {
+    if (ammo <= 0) {
+      setMessage('NO AMMO · PROFIT BLASTER EMPTY');
+      return;
+    }
+    setAmmo(a => Math.max(0, a - 1));
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 90);
+
+    const rect = arenaRef.current?.getBoundingClientRect();
+    const tx = rect && clientX != null ? ((clientX - rect.left) / rect.width) * 100 : 50;
+    const ty = rect && clientY != null ? ((clientY - rect.top) / rect.height) * 100 : 50;
+
+    setInvaders(current => {
+      if (!current.length) {
+        setMessage('SHOT FIRED · NO TARGET');
         return current;
       }
-
-      const copy = [...current];
-      const enemy = copy[bestIndex];
-      const nextHp = enemy.hp - vaultGirlDamage;
-
-      if (nextHp <= 0) {
-        killed = true;
-        copy.splice(bestIndex, 1);
-        setKills((k) => k + 1);
-        setMessage(`${invaderLabel(enemy.type)} DESTROYED - PROFIT SECURED`);
-        setVaultShield((s) => clamp(s + 2, 0, 100));
-      } else {
-        copy[bestIndex] = { ...enemy, hp: nextHp };
-        setMessage(`${invaderLabel(enemy.type)} HIT - ${Math.ceil(nextHp)} HP LEFT`);
+      let best = -1;
+      let dist = Infinity;
+      current.forEach((e, i) => {
+        const d = Math.hypot(e.x - tx, e.y - ty);
+        if (d < dist) { dist = d; best = i; }
+      });
+      if (best < 0 || dist > 23) {
+        setMessage('MISSED · RAIDERS STILL MOVING');
+        return current;
       }
-
+      const copy = [...current];
+      const enemy = copy[best];
+      const hp = enemy.hp - vaultGirlDamage;
+      if (hp <= 0) {
+        copy.splice(best, 1);
+        setKills(k => k + 1);
+        setShield(s => clamp(s + 3, 0, 100));
+        setMessage(`${enemy.type} DESTROYED · PROFIT SECURED`);
+        if (Math.random() > .55) setAmmo(a => clamp(a + 5, 0, 160));
+      } else {
+        copy[best] = { ...enemy, hp };
+        setMessage(`${enemy.type} HIT · ${Math.ceil(hp)} HP LEFT`);
+      }
       return copy;
     });
-
-    if (killed && Math.random() > 0.65) {
-      setAmmo((a) => clamp(a + 3, 0, 160));
-    }
-  }
+  };
 
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.code === 'Space') {
-        e.preventDefault();
-        fireAt();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Space') { e.preventDefault(); fireAt(); }
+      if (e.code === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   });
 
-  if (!visible) return null;
+  if (!open) return null;
 
   return (
-    <div className="doom-shell">
-      <div className="doom-title-row">
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(0,0,0,.94)', color: '#00ff66', fontFamily: 'Courier New, monospace', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #00ff44', background: '#001000' }}>
         <div>
-          <div className="doom-title">VAULT 63 DOOM DEFENCE</div>
-          <div className="doom-subtitle">ROOM: {room} • GIRL STATE: {vaultGirlState}</div>
+          <div style={{ fontSize: 18, letterSpacing: 4, fontWeight: 'bold' }}>VAULT 63 DOOM DEFENCE</div>
+          <div style={{ fontSize: 10, color: '#00aa44', letterSpacing: 2 }}>{levelName} · DIFFICULTY {difficulty.toFixed(1)}</div>
         </div>
-        <div className="doom-alert">DIFFICULTY {difficulty.toFixed(1)}</div>
+        <button onClick={onClose} style={{ background: '#220000', border: '1px solid #ff5555', color: '#ff7777', borderRadius: 6, padding: '10px 14px', fontFamily: 'inherit', letterSpacing: 2 }}>EXIT</button>
       </div>
 
       <div
         ref={arenaRef}
-        className="doom-arena"
         onClick={(e) => fireAt(e.clientX, e.clientY)}
-        onTouchStart={(e) => {
-          const t = e.touches[0];
-          if (t) fireAt(t.clientX, t.clientY);
-        }}
+        onTouchStart={(e) => { const t = e.touches[0]; if (t) fireAt(t.clientX, t.clientY); }}
+        style={{ flex: 1, position: 'relative', overflow: 'hidden', cursor: 'crosshair', background: 'radial-gradient(circle at center, #082008 0%, #020802 55%, #000 100%)', touchAction: 'manipulation' }}
       >
-        <div className="doom-core">
-          <div className="doom-core-ring" />
-          <div className="doom-core-text">VAULT<br />CORE</div>
-        </div>
+        <div style={{ position: 'absolute', left: '43%', top: '31%', width: '14%', height: '38%', border: '3px solid #00ff44', borderRadius: 10, boxShadow: '0 0 35px #00ff4466, inset 0 0 30px #00ff4422' }} />
+        <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', color: '#00ff88', fontSize: 11, letterSpacing: 2, textAlign: 'center' }}>VAULT<br/>CORE</div>
 
-        {invaders.map((enemy) => (
-          <div
-            key={enemy.id}
-            className="doom-invader"
-            style={{
-              left: `${enemy.x}%`,
-              top: `${enemy.y}%`,
-              width: enemy.size,
-              height: enemy.size,
-              boxShadow: `0 0 18px ${enemy.glow}`,
-              borderColor: enemy.glow,
-            }}
-          >
-            <div className="doom-enemy-face">{enemy.type === 'RUG_PULL_BOSS' ? '☠' : enemy.type === 'WHALE_THIEF' ? '₿' : enemy.type === 'LIQUIDATION_GHOUL' ? '!' : '$'}</div>
-            <div className="doom-enemy-hp" style={{ width: `${(enemy.hp / enemy.maxHp) * 100}%` }} />
+        {invaders.map(enemy => (
+          <div key={enemy.id} style={{ position: 'absolute', left: `${enemy.x}%`, top: `${enemy.y}%`, transform: 'translate(-50%,-50%)', width: enemy.size, height: enemy.size, borderRadius: enemy.type.includes('BOSS') ? 4 : '50%', border: `2px solid ${enemy.color}`, color: enemy.color, background: '#050505', boxShadow: `0 0 20px ${enemy.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: enemy.type.includes('BOSS') ? 18 : 14, fontWeight: 'bold' }}>
+            {enemy.type === 'WHALE THIEF' ? '🐋' : enemy.type === 'LIQUIDATION GHOUL' ? '☠' : enemy.type === 'RUG PULL BOSS' ? 'BOSS' : 'FUD'}
+            <div style={{ position: 'absolute', top: -8, left: 0, height: 3, width: '100%', background: '#220000' }}>
+              <div style={{ height: '100%', width: `${clamp((enemy.hp / enemy.maxHp) * 100, 0, 100)}%`, background: enemy.color }} />
+            </div>
           </div>
         ))}
 
-        {muzzleFlash && <div className="doom-muzzle">✦</div>}
+        {flash && <div style={{ position: 'absolute', left: '50%', bottom: '8%', transform: 'translateX(-50%)', width: 90, height: 90, borderRadius: '50%', background: 'radial-gradient(circle, #fff 0%, #00ff88 25%, transparent 70%)', opacity: .8, pointerEvents: 'none' }} />}
 
-        <div className="doom-message">{message}</div>
+        <div style={{ position: 'absolute', left: 10, top: 10, color: '#ffaa00', fontSize: 12, letterSpacing: 2 }}>PROFIT HEAT: {money(Math.max(0, pnl))}</div>
+        <div style={{ position: 'absolute', right: 10, top: 10, color: '#ff7777', fontSize: 12, letterSpacing: 2 }}>STOLEN: {money(stolen)}</div>
+        <div style={{ position: 'absolute', left: 10, bottom: 10, right: 10, color: '#00ff88', fontSize: 12, letterSpacing: 2, textAlign: 'center' }}>{message}</div>
       </div>
 
-      <div className="doom-hud">
-        <div><span>HEALTH</span><b>{Math.round(health)}</b></div>
-        <div><span>ARMOR</span><b>{Math.round(armor)}</b></div>
-        <div><span>AMMO</span><b>{ammo}</b></div>
-        <div><span>KILLS</span><b>{kills}</b></div>
-        <div><span>ENEMIES</span><b>{invaders.length}</b></div>
-        <div><span>SHIELD</span><b>{Math.round(vaultShield)}</b></div>
-      </div>
-
-      <div className="doom-trade-feed">
-        <div>EQUITY: ${equity.toFixed(2)}</div>
-        <div>TODAY: ${todayPnl.toFixed(2)}</div>
-        <div>LOSS STREAK: {lossStreak}</div>
-        <div>STOLEN: ${stolen.toFixed(2)}</div>
-        <div>RULE: GOOD TRADES ATTRACT THIEVES • BAD TRADES WEAKEN DEFENCE</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 4, padding: 8, background: '#050805', borderTop: '2px solid #00ff44', fontSize: 12, textAlign: 'center' }}>
+        <div>HEALTH<br/><b style={{ color: health < 30 ? '#ff5555' : '#00ff66' }}>{Math.round(health)}</b></div>
+        <div>ARMOR<br/><b>{Math.round(armor)}</b></div>
+        <div>AMMO<br/><b>{ammo}</b></div>
+        <div>KILLS<br/><b>{kills}</b></div>
+        <div>SHIELD<br/><b>{Math.round(shield)}</b></div>
+        <div>EQUITY<br/><b>{money(equity)}</b></div>
       </div>
     </div>
   );
 }
-
---------------------------------------------------
-END OF CODE
---------------------------------------------------
-
-CSS TO ADD
-----------
-Add this to the bottom of:
-
-src/index.css
-
---------------------------------------------------
-START OF CSS
---------------------------------------------------
-
-.doom-shell {
-  margin: 18px 0;
-  padding: 18px;
-  border: 1px solid #00ff66;
-  border-radius: 18px;
-  background: radial-gradient(circle at center, rgba(0, 255, 102, 0.08), rgba(0, 0, 0, 0.82));
-  box-shadow: 0 0 24px rgba(0, 255, 102, 0.25), inset 0 0 24px rgba(0, 255, 102, 0.10);
-  color: #79ff9d;
-  pointer-events: auto !important;
-  touch-action: manipulation !important;
-}
-
-.doom-title-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
-  margin-bottom: 14px;
-}
-
-.doom-title {
-  font-size: 26px;
-  font-weight: 900;
-  letter-spacing: 4px;
-}
-
-.doom-subtitle {
-  font-size: 13px;
-  opacity: 0.85;
-  margin-top: 4px;
-}
-
-.doom-alert {
-  border: 1px solid #00ff66;
-  padding: 8px 10px;
-  border-radius: 10px;
-  font-size: 14px;
-  white-space: nowrap;
-  box-shadow: 0 0 12px rgba(0,255,102,0.22);
-}
-
-.doom-arena {
-  position: relative;
-  height: 340px;
-  overflow: hidden;
-  border: 2px solid #00ff66;
-  border-radius: 14px;
-  background:
-    linear-gradient(rgba(0,255,102,0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,255,102,0.05) 1px, transparent 1px),
-    radial-gradient(circle at center, rgba(0,80,35,0.72), rgba(0,0,0,0.92));
-  background-size: 20px 20px, 20px 20px, cover;
-  cursor: crosshair;
-  touch-action: manipulation;
-}
-
-.doom-core {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 92px;
-  height: 92px;
-  border: 2px solid #00ff66;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  color: #00ff66;
-  font-weight: 900;
-  letter-spacing: 2px;
-  text-shadow: 0 0 12px #00ff66;
-  box-shadow: 0 0 25px rgba(0,255,102,0.5), inset 0 0 25px rgba(0,255,102,0.15);
-}
-
-.doom-core-ring {
-  position: absolute;
-  inset: -10px;
-  border: 1px dashed rgba(0,255,102,0.55);
-  border-radius: 50%;
-  animation: doomSpin 5s linear infinite;
-}
-
-.doom-core-text {
-  position: relative;
-  z-index: 2;
-}
-
-.doom-invader {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  border: 2px solid #39ff14;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-weight: 900;
-  text-shadow: 0 0 10px currentColor;
-}
-
-.doom-enemy-face {
-  font-size: 18px;
-}
-
-.doom-enemy-hp {
-  position: absolute;
-  left: 0;
-  bottom: -6px;
-  height: 3px;
-  background: #00ff66;
-  box-shadow: 0 0 8px #00ff66;
-}
-
-.doom-muzzle {
-  position: absolute;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  font-size: 70px;
-  color: #ffffff;
-  text-shadow: 0 0 20px #00ff66, 0 0 40px #ffffff;
-  pointer-events: none;
-}
-
-.doom-message {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  padding: 8px;
-  border: 1px solid rgba(0,255,102,0.45);
-  background: rgba(0,0,0,0.75);
-  color: #8cffaa;
-  font-size: 13px;
-  text-align: center;
-}
-
-.doom-hud {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.doom-hud div {
-  border: 1px solid rgba(0,255,102,0.55);
-  border-radius: 10px;
-  padding: 8px;
-  background: rgba(0,20,8,0.75);
-  text-align: center;
-}
-
-.doom-hud span {
-  display: block;
-  font-size: 11px;
-  opacity: 0.82;
-}
-
-.doom-hud b {
-  display: block;
-  font-size: 22px;
-  color: #ffffff;
-  text-shadow: 0 0 12px #00ff66;
-}
-
-.doom-trade-feed {
-  margin-top: 12px;
-  border-top: 1px dashed rgba(0,255,102,0.45);
-  padding-top: 10px;
-  font-size: 14px;
-  line-height: 1.45;
-}
-
-@keyframes doomSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@media (max-width: 600px) {
-  .doom-title {
-    font-size: 20px;
-    letter-spacing: 2px;
-  }
-
-  .doom-arena {
-    height: 300px;
-  }
-
-  .doom-hud {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
---------------------------------------------------
-END OF CSS
---------------------------------------------------
-
-HOW TO ADD IT TO THE APP
-------------------------
-Find the screen where you show Vault Companion / Command Deck.
-It may be in:
-
-src/App.tsx
-or
-src/game/Game.tsx
-or
-src/game/VaultGirl.tsx
-
-Add this import at the top:
-
-import VaultDoomInvaders from './game/VaultDoomInvaders';
-
-If the file you are editing is already inside src/game, use:
-
-import VaultDoomInvaders from './VaultDoomInvaders';
-
-Then add this component below the Vault Girl / System Status section:
-
-<VaultDoomInvaders
-  tradingData={tradingData}
-  room={currentRoom}
-  visible={true}
-/>
-
-If your variables have different names, use the closest ones:
-
-<VaultDoomInvaders
-  tradingData={data}
-  room="LAB FLOOR"
-  visible={true}
-/>
-
-BUTTONS NOT WORKING FIX
------------------------
-If mobile buttons stop working because a panel sits over them, add this to bottom of src/index.css:
-
-button,
-a,
-[role='button'] {
-  pointer-events: auto !important;
-  touch-action: manipulation !important;
-  position: relative;
-  z-index: 50;
-}
-
-.vault-companion,
-.vault-girl,
-.companion-panel,
-.memory-core {
-  pointer-events: none !important;
-}
-
-.vault-companion button,
-.vault-girl button,
-.companion-panel button,
-.memory-core button {
-  pointer-events: auto !important;
-}
-
-NEXT UPGRADE IDEAS
-------------------
-1. Add rooms: Cryo Bay, Med Bay, Trade Floor, Vault Door, Memory Core.
-2. Make each room have a different enemy type.
-3. Add boss fight when loss streak hits 4.
-4. Add treasure chest when trade closes green.
-5. Add Vault Girl voice messages.
-6. Add a shop where profit buys upgrades.
-7. Add auto-defence turrets when win rate improves.
-8. Add emergency lockdown when bot avoid mode turns on.
-
-IMPORTANT
----------
-This is the Doom-style invader concept as a React overlay system.
-It does not replace your existing Vault Girl.
-It sits underneath/near her and uses the same AI trader data.
-
