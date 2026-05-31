@@ -65,7 +65,7 @@ export function PipBoy({ open, screen, onChangeScreen, onClose, tradingData, api
       background: 'rgba(0,8,0,0.85)', backdropFilter: 'blur(2px)',
     }}>
       <div style={{
-        width: 640, maxHeight: '94vh',
+        width: 640, maxWidth: '96vw', maxHeight: '94vh',
         background: 'linear-gradient(135deg, #1a2a1a 0%, #0d1a0d 60%, #111a11 100%)',
         border: '3px solid #2a4a2a', borderRadius: 16,
         boxShadow: '0 0 40px #00ff4422, 0 0 80px #00ff4411, inset 0 0 20px rgba(0,0,0,0.8)',
@@ -73,6 +73,18 @@ export function PipBoy({ open, screen, onChangeScreen, onClose, tradingData, api
         fontFamily: "'Courier New', monospace",
         display: 'flex', flexDirection: 'column', gap: 8,
       }}>
+        <button
+          onClick={onClose}
+          onTouchStart={(e) => { e.stopPropagation(); onClose(); }}
+          aria-label="Close Pip-Boy"
+          style={{
+            position: 'absolute', top: 8, right: 8, zIndex: 5,
+            background: '#001800', border: '1px solid #00ff44', color: '#00ff44',
+            borderRadius: 6, padding: '8px 12px', fontFamily: 'inherit',
+            fontSize: 12, letterSpacing: 2, cursor: 'pointer', touchAction: 'manipulation',
+          }}
+        >CLOSE</button>
+
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1a3a1a', paddingBottom: 6 }}>
           <div style={{ color: '#00ff44', fontSize: 10, letterSpacing: 3 }}>ROBCO INDUSTRIES (TM)</div>
@@ -288,7 +300,7 @@ function TradeScreen({ data, apiUrl, setApiUrl }: { data: TradingData; apiUrl: s
 
       {!apiUrl && !editingUrl && (
         <div style={{ color: '#ffaa00', fontSize: 10, marginBottom: 8, lineHeight: 1.8, borderLeft: '2px solid #ffaa00', paddingLeft: 8 }}>
-          NO API CONNECTED<br/>
+          PERMANENT API CONNECTED<br/>
           <span style={{ cursor: 'pointer', textDecoration: 'underline', color: '#00ff44' }} onClick={() => setEditingUrl(true)}>
             ▶ ENTER DASHBOARD URL
           </span>
@@ -348,7 +360,7 @@ function TradeScreen({ data, apiUrl, setApiUrl }: { data: TradingData; apiUrl: s
       <div style={{ marginTop: 10, borderTop: '1px solid #1a3a1a', paddingTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#446644' }}>
         <span>SYNC: {data.lastUpdated} · {data.connected ? `${data.secondsAgo}s ago` : 'OFFLINE'}</span>
         <span style={{ cursor: 'pointer', color: '#00aa33', textDecoration: 'underline' }} onClick={() => { setUrlDraft(apiUrl); setEditingUrl(true); }}>
-          ⚙ CONFIG
+          ⚙ API
         </span>
       </div>
     </div>
