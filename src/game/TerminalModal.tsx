@@ -114,6 +114,7 @@ export function TerminalModal({ terminalId, onClose, tradingData }: Props) {
       position: 'fixed', inset: 0, zIndex: 900,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'rgba(0,0,0,0.75)',
+      touchAction: 'manipulation',
     }}>
       <div style={{
         width: 680,
@@ -123,7 +124,22 @@ export function TerminalModal({ terminalId, onClose, tradingData }: Props) {
         boxShadow: `0 0 40px ${terminal.color}44, 0 0 80px ${terminal.color}22`,
         fontFamily: "'Courier New', monospace",
         overflow: 'hidden',
+        maxWidth: '96vw',
+        maxHeight: '92vh',
+        position: 'relative',
       }}>
+        <button
+          onClick={onClose}
+          onTouchStart={(e) => { e.stopPropagation(); onClose(); }}
+          aria-label="Close terminal"
+          style={{
+            position: 'absolute', top: 8, right: 8, zIndex: 5,
+            background: '#110000', border: '1px solid #ff5555', color: '#ff7777',
+            borderRadius: 6, padding: '8px 12px', fontFamily: 'inherit',
+            fontSize: 12, letterSpacing: 2, cursor: 'pointer', touchAction: 'manipulation',
+          }}
+        >CLOSE</button>
+
         {/* Header */}
         <div style={{
           background: terminal.color + '22', borderBottom: `1px solid ${terminal.color}44`,
@@ -182,6 +198,11 @@ export function TerminalModal({ terminalId, onClose, tradingData }: Props) {
           color: terminal.color + '88', fontSize: 9, letterSpacing: 1,
         }}>
           <span>
+            <button onClick={onClose} style={{
+              marginRight: 10, background: terminal.color + '22', border: '1px solid ' + terminal.color,
+              color: terminal.color, borderRadius: 4, padding: '4px 8px', fontFamily: 'inherit',
+              fontSize: 9, letterSpacing: 1, cursor: 'pointer'
+            }}>EXIT</button>
             {terminal.label}
             {isMainframe && tradingData && (
               <span style={{ marginLeft: 12, color: pnlPositive ? '#00ff88' : pnlNegative ? '#ff5555' : terminal.color + '88' }}>
