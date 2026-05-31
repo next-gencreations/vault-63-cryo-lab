@@ -12,6 +12,7 @@ import { VaultGirl } from './VaultGirl';
 import { PipBoyScreen } from './types';
 import { checkWebGL } from './WebGLCheck';
 import { useTradingData } from './useTradingData';
+import { VaultDoomInvaders } from './VaultDoomInvaders';
 
 const isMobile = typeof window !== 'undefined' &&
   ('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -42,6 +43,7 @@ function VaultGame() {
   const [activeTerminal, setActiveTerminal] = useState<string | null>(null);
   const [pipBoyOpen, setPipBoyOpen] = useState(false);
   const [pipBoyScreen, setPipBoyScreen] = useState<PipBoyScreen>('STAT');
+  const [doomOpen, setDoomOpen] = useState(false);
 
   // Live trading data — drives Pip-Boy TRADE screen, terminal, and vault girl mood
   const trading = useTradingData(8_000);
@@ -51,7 +53,7 @@ function VaultGame() {
   const moveInputRef = useRef({ x: 0, z: 0 });
   const playerPosRef = useRef({ x: 0, z: 9 });
 
-  const isModalOpen = pipBoyOpen || !!activeTerminal;
+  const isModalOpen = pipBoyOpen || !!activeTerminal || doomOpen;
 
   // Intro sequence
   useEffect(() => {
@@ -70,14 +72,18 @@ function VaultGame() {
       if (e.code === 'KeyE' && nearbyTerminal && isActive && !isModalOpen) {
         setActiveTerminal(nearbyTerminal);
       }
+      if (e.code === 'KeyK' && isActive && !activeTerminal && !pipBoyOpen) {
+        setDoomOpen(o => !o);
+      }
       if (e.code === 'Escape') {
+        if (doomOpen) { setDoomOpen(false); return; }
         if (activeTerminal) { setActiveTerminal(null); return; }
         if (pipBoyOpen) { setPipBoyOpen(false); }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [nearbyTerminal, isActive, isModalOpen, activeTerminal, pipBoyOpen]);
+  }, [nearbyTerminal, isActive, isModalOpen, activeTerminal, pipBoyOpen, doomOpen]);
 
   const handleLock = useCallback(() => { setIsActive(true); setHasStarted(true); }, []);
   const handleUnlock = useCallback(() => setIsActive(false), []);
@@ -189,6 +195,41 @@ function VaultGame() {
             />
           )}
 
+          {showHUD && (
+            <button
+              onClick={() => setDoomOpen(true)}
+              style={{
+                position: 'fixed', top: 96, right: 8, zIndex: 140,
+                background: trading.pnlToday > 0 ? 'rgba(60,20,0,0.95)' : 'rgba(0,20,0,0.85)',
+                border: '1px solid #ffcc44', color: '#ffcc44', borderRadius: 5,
+                padding: '9px 10px', fontFamily: 'Courier New, monospace',
+                fontSize: 10, letterSpacing: 1, boxShadow: '0 0 14px #ffcc4433',
+              }}
+            >DOOM<br/>DEFENCE</button>
+          )}
+
+          {showHUD && (
+            <div style={{
+              position: 'fixed', bottom: 88, right: 8, width: 92, zIndex: 130,
+              pointerEvents: 'none', background: 'rgba(0,16,0,0.72)',
+              border: '1px solid #00aa44', borderRadius: 8, padding: 6,
+              textAlign: 'center',
+            }}>
+              <VaultGirl
+                direction="down"
+                walking={false}
+                introStep={3}
+                mood={trading.mood}
+                vaultState={trading.vaultState}
+                vaultLine={trading.vaultLine}
+              />
+              <div style={{ color: '#00ff88', fontSize: 7, letterSpacing: 1, marginTop: 3 }}>
+                {trading.status} · {trading.connected ? trading.secondsAgo + 's' : 'SYNC'}<br/>
+                HP {trading.lossStreak >= 3 ? 'LOW' : 'OK'} · {trading.pnlToday >= 0 ? '+' : ''}${trading.pnlToday.toFixed(2)}
+              </div>
+            </div>
+          )}
+
           {/* Mobile vault badge (top center) */}
           {showHUD && (
             <div style={{
@@ -281,6 +322,7 @@ function VaultGame() {
               MOUSE — LOOK AROUND<br />
               E — INTERACT WITH TERMINAL<br />
               TAB — OPEN PIP-BOY<br />
+              K — DOOM DEFENCE<br />
               ESC — RELEASE MOUSE
             </div>
           )}
@@ -322,6 +364,20 @@ function VaultGame() {
               </div>
             </div>
           )}
+
+          {showHUD && (
+            <button
+              onClick={() => setDoomOpen(true)}
+              style={{
+                position: 'fixed', bottom: 16, right: 160, zIndex: 110,
+                background: 'rgba(20,6,0,0.9)', border: '1px solid #ffcc44',
+                color: '#ffcc44', borderRadius: 5, padding: '10px 14px',
+                fontFamily: 'Courier New, monospace', fontSize: 11, letterSpacing: 2,
+                boxShadow: '0 0 16px #ffcc4433', cursor: 'pointer',
+              }}
+            >DOOM DEFENCE</button>
+          )}
+
         </>
       )}
 
@@ -372,6 +428,12 @@ function VaultGame() {
       <TerminalModal
         terminalId={activeTerminal}
         onClose={() => setActiveTerminal(null)}
+        tradingData={trading}
+      />
+
+      <VaultDoomInvaders
+        open={doomOpen}
+        onClose={() => setDoomOpen(false)}
         tradingData={trading}
       />
 
