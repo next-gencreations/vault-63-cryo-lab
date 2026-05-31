@@ -128,8 +128,12 @@ function parseData(raw: Record<string, unknown>, lastUpdate: number): TradingDat
   };
 }
 
+const PERMANENT_TRADER_API = 'https://coinbase-trader-bot-r39n.onrender.com';
+
 function getApiUrl(): string {
-  return localStorage.getItem('trading_api_url') ?? '';
+  const fromEnv = (import.meta as any).env?.VITE_API_BASE || (import.meta as any).env?.API_BASE;
+  const stored = localStorage.getItem('trading_api_url');
+  return String(stored || fromEnv || PERMANENT_TRADER_API).replace(/\/+$/, '');
 }
 
 export function useTradingData(intervalMs = 8_000): TradingData & { apiUrl: string; setApiUrl: (u: string) => void } {
@@ -146,7 +150,9 @@ export function useTradingData(intervalMs = 8_000): TradingData & { apiUrl: stri
 
   useEffect(() => {
     if (!apiUrl) {
-      setData(d => ({ ...d, connected: false, status: 'OFFLINE', mood: 'cryo' }));
+      const fallback = PERMANENT_TRADER_API;
+      localStorage.setItem('trading_api_url', fallback);
+      setApiUrlState(fallback);
       return;
     }
 
