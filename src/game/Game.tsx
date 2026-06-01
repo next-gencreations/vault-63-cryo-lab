@@ -431,7 +431,7 @@ function VaultGame() {
         tradingData={trading}
       />
 
-      <VaultDoomInvaders
+      <VaultDoomFPS
         open={doomOpen}
         onClose={() => setDoomOpen(false)}
         tradingData={trading}
