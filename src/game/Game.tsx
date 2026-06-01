@@ -12,7 +12,7 @@ import { VaultGirl } from './VaultGirl';
 import { PipBoyScreen } from './types';
 import { checkWebGL } from './WebGLCheck';
 import { useTradingData } from './useTradingData';
-import { VaultDoomInvaders } from './VaultDoomInvaders';
+import { VaultDoomFPS } from './VaultDoomFPS';
 
 const isMobile = typeof window !== 'undefined' &&
   ('ontouchstart' in window || navigator.maxTouchPoints > 0);
