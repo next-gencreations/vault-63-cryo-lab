@@ -1,33 +1,42 @@
-export const INTERACT_RADIUS = 4.5;
-export const PLAYER_SPEED = 6;
+export const INTERACT_RADIUS  = 4.5;
+export const PLAYER_SPEED    = 14;
+export const PLAYER_SPRINT   = 22;
 export const ROOM_W = 28;
 export const ROOM_H = 6;
 export const ROOM_D = 28;
 export const ROOM_BOUND = 12.5;
 
-export interface RadZone {
-  x: number;
-  z: number;
-  radius: number;
-  maxRads: number;
-  label: string;
+// ─── Multi-room navigation bounds ─────────────────────────────────────────────
+export function isInAllowedZone(x: number, z: number): boolean {
+  if (Math.abs(x) <= 12.5 && Math.abs(z) <= 12.5) return true;  // main cryo lab
+  if (x >= -22 && x <= -12.5 && Math.abs(z) <= 2.4) return true; // west corridor
+  if (x >= -50 && x <= -22  && Math.abs(z) <= 12.5) return true;  // garden room
+  if (x >= 12.5 && x <= 22  && Math.abs(z) <= 2.4)  return true;  // east corridor
+  if (x >= 22  && x <= 50   && Math.abs(z) <= 12.5) return true;  // generator room
+  return false;
 }
+
+export function detectRoom(x: number, _z: number): string {
+  if (x <= -22) return 'garden';
+  if (x >= 22)  return 'generator';
+  if (x < -12.5) return 'corridor';
+  if (x > 12.5)  return 'corridor';
+  return 'cryolab';
+}
+
+// ─── Radiation zones ──────────────────────────────────────────────────────────
+export interface RadZone { x: number; z: number; radius: number; maxRads: number; label: string; }
 
 export const RAD_ZONES: RadZone[] = [
-  { x: 13,  z: 4,   radius: 6, maxRads: 8, label: 'MAINFRAME COOLANT LEAK' },
-  { x: -12, z: -8,  radius: 5, maxRads: 5, label: 'CRYO FLUID CONTAMINATION' },
-  { x: 12,  z: -8,  radius: 5, maxRads: 4, label: 'REACTOR BLEED' },
-  { x: 0,   z: -13, radius: 3, maxRads: 3, label: 'CRYO TUBE DISCHARGE' },
+  { x: 13,  z: 4,   radius: 6, maxRads: 8, label: 'MAINFRAME COOLANT LEAK'    },
+  { x: -12, z: -8,  radius: 5, maxRads: 5, label: 'CRYO FLUID CONTAMINATION'  },
+  { x: 12,  z: -8,  radius: 5, maxRads: 4, label: 'REACTOR BLEED'              },
+  { x: 0,   z: -13, radius: 3, maxRads: 3, label: 'CRYO TUBE DISCHARGE'        },
+  { x: 36,  z: 0,   radius: 9, maxRads: 7, label: 'REACTOR CORE RADIATION'     },
 ];
 
-export interface TerminalDef {
-  id: string;
-  x: number;
-  y: number;
-  label: string;
-  color: string;
-}
-
+// ─── Terminal types ───────────────────────────────────────────────────────────
+export interface TerminalDef { id: string; x: number; y: number; label: string; color: string; }
 export interface Terminal3DDef {
   id: string;
   position: [number, number, number];
@@ -37,20 +46,36 @@ export interface Terminal3DDef {
 }
 
 export const TERMINALS_3D: Terminal3DDef[] = [
-  { id: 'cryo',     position: [0,   1.5, -13],  rotation: [0, 0, 0],             color: '#00aaff', label: 'CRYO SYSTEM CONTROL' },
-  { id: 'security', position: [-13, 1.5, -4],   rotation: [0, Math.PI / 2, 0],   color: '#ff4444', label: 'VAULT SECURITY' },
-  { id: 'research', position: [13,  1.5, -4],   rotation: [0, -Math.PI / 2, 0],  color: '#44ff44', label: 'RESEARCH TERMINAL B-7' },
-  { id: 'medical',  position: [-13, 1.5, 4],    rotation: [0, Math.PI / 2, 0],   color: '#44aaff', label: 'MEDICAL STATION ALPHA' },
-  { id: 'mainframe',position: [13,  1.5, 4],    rotation: [0, -Math.PI / 2, 0],  color: '#ffaa00', label: 'MAINFRAME ACCESS' },
+  // Main Cryo Lab
+  { id: 'cryo',      position: [0,   1.5, -13],  rotation: [0, 0, 0],              color: '#00aaff', label: 'CRYO SYSTEM CONTROL'   },
+  { id: 'security',  position: [-13, 1.5, -4],   rotation: [0, Math.PI / 2, 0],    color: '#ff4444', label: 'VAULT SECURITY'         },
+  { id: 'research',  position: [13,  1.5, -4],   rotation: [0, -Math.PI / 2, 0],   color: '#44ff44', label: 'RESEARCH TERMINAL B-7'  },
+  { id: 'medical',   position: [-13, 1.5, 4],    rotation: [0, Math.PI / 2, 0],    color: '#44aaff', label: 'MEDICAL STATION ALPHA'  },
+  { id: 'mainframe', position: [13,  1.5, 4],    rotation: [0, -Math.PI / 2, 0],   color: '#ffaa00', label: 'MAINFRAME ACCESS'        },
+  // Garden / Hydroponics (west, at x=-49, faces east = rotation +Math.PI/2)
+  { id: 'garden',    position: [-49, 1.5, 0],    rotation: [0, Math.PI / 2, 0],    color: '#44ff88', label: 'HYDROPONICS CONTROL'    },
+  // Generator / Reactor (east, at x=49, faces west = rotation -Math.PI/2)
+  { id: 'reactor',   position: [49,  1.5, 0],    rotation: [0, -Math.PI / 2, 0],   color: '#ff6600', label: 'REACTOR CORE SYSTEMS'   },
 ];
 
-// Keep for TerminalModal content
+export const TERMINAL_MARKET: Record<string, string> = {
+  cryo:      'BTC-USD',
+  security:  'ETH-USD',
+  research:  'SOL-USD',
+  medical:   'DOGE-USD',
+  mainframe: 'BTC-USD',
+  garden:    'XRP-USD',
+  reactor:   'AVAX-USD',
+};
+
 export const TERMINALS: TerminalDef[] = [
-  { id: 'cryo',     x: 0,   y: 0, label: 'CRYO SYSTEM CONTROL',  color: '#00aaff' },
-  { id: 'security', x: 0,   y: 0, label: 'VAULT SECURITY',        color: '#ff4444' },
-  { id: 'research', x: 0,   y: 0, label: 'RESEARCH TERMINAL B-7', color: '#44ff44' },
-  { id: 'medical',  x: 0,   y: 0, label: 'MEDICAL STATION ALPHA', color: '#44aaff' },
-  { id: 'mainframe',x: 0,   y: 0, label: 'MAINFRAME ACCESS',      color: '#ffaa00' },
+  { id: 'cryo',      x: 0, y: 0, label: 'CRYO SYSTEM CONTROL',   color: '#00aaff' },
+  { id: 'security',  x: 0, y: 0, label: 'VAULT SECURITY',         color: '#ff4444' },
+  { id: 'research',  x: 0, y: 0, label: 'RESEARCH TERMINAL B-7',  color: '#44ff44' },
+  { id: 'medical',   x: 0, y: 0, label: 'MEDICAL STATION ALPHA',  color: '#44aaff' },
+  { id: 'mainframe', x: 0, y: 0, label: 'MAINFRAME ACCESS',        color: '#ffaa00' },
+  { id: 'garden',    x: 0, y: 0, label: 'HYDROPONICS CONTROL',     color: '#44ff88' },
+  { id: 'reactor',   x: 0, y: 0, label: 'REACTOR CORE SYSTEMS',   color: '#ff6600' },
 ];
 
 export const TERMINAL_CONTENT: Record<string, { title: string; lines: string[] }> = {
@@ -175,6 +200,67 @@ export const TERMINAL_CONTENT: Record<string, { title: string; lines: string[] }
       '  All trades logged for audit review.',
       '  Vault-Tec takes no liability for',
       '  market losses incurred post-war.',
+    ],
+  },
+  garden: {
+    title: 'VAULT-TEC HYDROPONICS BAY — SECTOR G',
+    lines: [
+      '> HYDROPONICS STATUS — LEVEL 2',
+      '  System Online: 210 years continuous',
+      '  Last Harvest:  ERROR — LOG MISSING',
+      '',
+      '> GROW BAYS: 12 active / 12 total',
+      '  UV Spectrum:   OPTIMAL  (380–780 nm)',
+      '  Water pH:      6.3  (TARGET 6.5)',
+      '  Nutrient Mix:  VAULT-TEC FORMULA 7B',
+      '',
+      '> CROP STATUS:',
+      '  Mutfruit:         THRIVING',
+      '  Tato:             STABLE',
+      '  Corn (pre-war):   MUTATED — STILL EDIBLE',
+      '  Razorgrain:       OVERGROWN — NEEDS TRIM',
+      '',
+      '> WATER RECYCLE:',
+      '  Efficiency: 94.7%   (EXCELLENT)',
+      '  Last filter change: 210 years ago',
+      '',
+      '> NOTE FROM OVERSEER (2079):',
+      '  "If you read this, eat the mutfruit.',
+      '   It tastes awful. Eat it anyway.',
+      '   The garden will outlast all of us."',
+    ],
+  },
+  reactor: {
+    title: 'VAULT-TEC REACTOR CORE — LEVEL 1',
+    lines: [
+      '> FUSION REACTOR STATUS',
+      '  Model: Vault-Tec Mark IV Fusion Core',
+      '  Online since: 2077.10.23',
+      '  Runtime: 210 years 0 days',
+      '',
+      '> POWER OUTPUT:',
+      '  Current:   87.4 MW   (TARGET 90 MW)',
+      '  Stability: 91.2%     (WARNING: DEGRADED)',
+      '  Fuel rod:  6.3% remaining',
+      '',
+      '> COOLANT SYSTEMS:',
+      '  Primary loop:    NOMINAL',
+      '  Secondary loop:  WARNING — PRESSURE HIGH',
+      '  Tertiary:        OFFLINE (non-critical)',
+      '',
+      '> RADIATION LEVELS:',
+      '  Core chamber:    340 rads/hr  [DANGER]',
+      '  Control room:    4.2 rads/hr  [CAUTION]',
+      '  Perimeter:       0.8 rads/hr  [LOW]',
+      '',
+      '> MAINTENANCE LOG:',
+      '  Last inspection: 2079.01.12',
+      '  "Fuel cell approaching end of life.',
+      '   Estimated failure: 50–100 years."',
+      '',
+      '  SYSTEM NOTE: 210 years elapsed.',
+      '  Fuel cell operating on reserve power.',
+      '  Reactor shutdown imminent.',
     ],
   },
 };
