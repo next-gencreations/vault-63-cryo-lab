@@ -1,35 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useKeyboardControls } from '@react-three/drei';
+import * as THREE from 'three';
 import { TradingData } from './useTradingData';
 
 type InvaderType = 'FUD RAIDER' | 'WHALE THIEF' | 'LIQUIDATION GHOUL' | 'RUG PULL BOSS' | 'CIRCUIT BREAKER' | 'FLASH CRASH PHANTOM';
 
-type Invader = {
+interface Enemy {
   id: string;
   type: InvaderType;
-  x: number;
-  y: number;
+  position: [number, number, number];
   hp: number;
   maxHp: number;
   speed: number;
-  steal: number;
-  size: number;
-  color: string;
   threat: 'infiltrate' | 'raid';
-};
+  color: string;
+}
 
 interface Props {
   open: boolean;
   onClose: () => void;
   tradingData: TradingData;
 }
-
-const LEVELS = [
-  'LEVEL 1 · CRYO BAY',
-  'LEVEL 2 · BOTANICAL LAB',
-  'LEVEL 3 · SHOWER / BEDROOM BLOCK',
-  'LEVEL 4 · MAIN VAULT TREASURY',
-  'LEVEL 5 · REACTOR CORE',
-];
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -39,7 +31,7 @@ function money(n: number) {
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function makeInvader(difficulty: number, profit: number, lossStreak: number, profitDropping: boolean): Invader {
+function makeEnemy(difficulty: number, profit: number, lossStreak: number, profitDropping: boolean): Enemy {
   const roll = Math.random();
   let type: InvaderType = 'FUD RAIDER';
   
@@ -49,37 +41,138 @@ function makeInvader(difficulty: number, profit: number, lossStreak: number, pro
   else if (lossStreak >= 3 && roll > 0.45) type = 'LIQUIDATION GHOUL';
   else if (difficulty > 8 && roll > 0.7) type = 'CIRCUIT BREAKER';
 
-  const fromLeft = Math.random() > 0.5;
   const threat = profitDropping ? 'raid' : 'infiltrate';
-  
-  const base = {
+  const fromLeft = Math.random() > 0.5;
+  const baseX = fromLeft ? -8 : 8;
+  const baseZ = -30 - Math.random() * 20;
+
+  const baseStats = {
     id: `${type}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-    x: fromLeft ? -8 : 108,
-    y: 22 + Math.random() * 54,
+    position: [baseX, 0, baseZ] as [number, number, number],
     threat,
+    color: '#39ff14',
   };
 
-  if (type === 'RUG PULL BOSS') return { ...base, type, hp: 200 + difficulty * 22, maxHp: 200 + difficulty * 22, speed: profitDropping ? 0.22 : 0.10 + difficulty * 0.01, steal: 25 + difficulty, size: 54, color: '#ff2255' };
-  if (type === 'FLASH CRASH PHANTOM') return { ...base, type, hp: 110 + difficulty * 12, maxHp: 110 + difficulty * 12, speed: 0.32 + difficulty * 0.03, steal: 22 + difficulty * 1.5, size: 48, color: '#ff1188' };
-  if (type === 'CIRCUIT BREAKER') return { ...base, type, hp: 140 + difficulty * 15, maxHp: 140 + difficulty * 15, speed: 0.19 + difficulty * 0.018, steal: 16 + difficulty, size: 46, color: '#ffaa00' };
-  if (type === 'WHALE THIEF') return { ...base, type, hp: 90 + difficulty * 10, maxHp: 90 + difficulty * 10, speed: profitDropping ? 0.20 : 0.13 + difficulty * 0.015, steal: 12 + difficulty, size: 42, color: '#00aaff' };
-  if (type === 'LIQUIDATION GHOUL') return { ...base, type, hp: 65 + difficulty * 9, maxHp: 65 + difficulty * 9, speed: profitDropping ? 0.28 : 0.24 + difficulty * 0.025, steal: 8 + difficulty, size: 36, color: '#ffaa00' };
-  return { ...base, type, hp: 48 + difficulty * 6, maxHp: 48 + difficulty * 6, speed: profitDropping ? 0.25 : 0.18 + difficulty * 0.02, steal: 4 + difficulty * 0.5, size: 28, color: '#39ff14' };
+  if (type === 'RUG PULL BOSS') return { ...baseStats, type, hp: 200 + difficulty * 22, maxHp: 200 + difficulty * 22, speed: profitDropping ? 0.22 : 0.10 + difficulty * 0.01, color: '#ff2255' };
+  if (type === 'FLASH CRASH PHANTOM') return { ...baseStats, type, hp: 110 + difficulty * 12, maxHp: 110 + difficulty * 12, speed: 0.32 + difficulty * 0.03, color: '#ff1188' };
+  if (type === 'CIRCUIT BREAKER') return { ...baseStats, type, hp: 140 + difficulty * 15, maxHp: 140 + difficulty * 15, speed: 0.19 + difficulty * 0.018, color: '#ffaa00' };
+  if (type === 'WHALE THIEF') return { ...baseStats, type, hp: 90 + difficulty * 10, maxHp: 90 + difficulty * 10, speed: profitDropping ? 0.20 : 0.13 + difficulty * 0.015, color: '#00aaff' };
+  if (type === 'LIQUIDATION GHOUL') return { ...baseStats, type, hp: 65 + difficulty * 9, maxHp: 65 + difficulty * 9, speed: profitDropping ? 0.28 : 0.24 + difficulty * 0.025, color: '#ffaa00' };
+  return { ...baseStats, type, hp: 48 + difficulty * 6, maxHp: 48 + difficulty * 6, speed: profitDropping ? 0.25 : 0.18 + difficulty * 0.02 };
 }
 
-export function VaultDoomInvaders({ open, onClose, tradingData }: Props) {
-  const [invaders, setInvaders] = useState<Invader[]>([]);
+function FPSCamera({ playerPosRef, cameraRotRef }: any) {
+  const { camera } = useThree();
+  
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (document.pointerLockElement) {
+        const sensitivity = 0.005;
+        cameraRotRef.current.yaw -= e.movementX * sensitivity;
+        cameraRotRef.current.pitch -= e.movementY * sensitivity;
+        cameraRotRef.current.pitch = clamp(cameraRotRef.current.pitch, -Math.PI / 2, Math.PI / 2);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [cameraRotRef]);
+
+  useFrame(() => {
+    camera.position.set(playerPosRef.current.x, 1.6, playerPosRef.current.z);
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = cameraRotRef.current.yaw;
+    camera.rotation.x = cameraRotRef.current.pitch;
+  });
+
+  return null;
+}
+
+function VaultCorridor() {
+  return (
+    <group>
+      {/* Floor */}
+      <mesh position={[0, -0.5, -50]} receiveShadow>
+        <planeGeometry args={[20, 100]} />
+        <meshStandardMaterial color="#1a1a1a" />
+      </mesh>
+
+      {/* Walls */}
+      <mesh position={[-10, 2, -50]} receiveShadow>
+        <boxGeometry args={[0.5, 5, 100]} />
+        <meshStandardMaterial color="#0a3a0a" />
+      </mesh>
+      <mesh position={[10, 2, -50]} receiveShadow>
+        <boxGeometry args={[0.5, 5, 100]} />
+        <meshStandardMaterial color="#0a3a0a" />
+      </mesh>
+
+      {/* Ceiling */}
+      <mesh position={[0, 4.5, -50]} receiveShadow>
+        <planeGeometry args={[20, 100]} />
+        <meshStandardMaterial color="#0a0a0a" />
+      </mesh>
+
+      {/* Vault door */}
+      <mesh position={[0, 1, -5]} castShadow>
+        <boxGeometry args={[6, 4, 0.5]} />
+        <meshStandardMaterial color="#ffaa00" emissive="#ffaa00" emissiveIntensity={0.5} />
+      </mesh>
+
+      {/* Lighting */}
+      <directionalLight position={[0, 4, 0]} intensity={0.8} castShadow />
+      <ambientLight intensity={0.4} color="#00ff44" />
+      <pointLight position={[0, 2, -20]} intensity={1} color="#00ff88" distance={30} />
+    </group>
+  );
+}
+
+function EnemyModel({ enemy, onHit }: any) {
+  const meshRef = useRef(null);
+  const [localPosition, setLocalPosition] = useState(enemy.position);
+
+  useFrame(() => {
+    if (meshRef.current && localPosition[2] < 5) {
+      const newZ = localPosition[2] + enemy.speed * 0.016;
+      setLocalPosition([localPosition[0], 0, newZ]);
+      (meshRef.current as any).position.z = newZ;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} position={localPosition} castShadow onClick={() => onHit(enemy.id)}>
+      <sphereGeometry args={[0.8, 16, 16]} />
+      <meshStandardMaterial color={enemy.color} emissive={enemy.color} emissiveIntensity={0.3} />
+      {/* Health bar */}
+      <mesh position={[0, 1.2, 0]}>
+        <planeGeometry args={[1.6, 0.2]} />
+        <meshBasicMaterial color="#220000" />
+      </mesh>
+      <mesh position={[0, 1.2, 0.05]}>
+        <planeGeometry args={[(enemy.hp / enemy.maxHp) * 1.6, 0.2]} />
+        <meshBasicMaterial color={enemy.color} />
+      </mesh>
+    </mesh>
+  );
+}
+
+export function VaultDoomFPS({ open, onClose, tradingData }: Props) {
+  const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [health, setHealth] = useState(100);
   const [armor, setArmor] = useState(50);
-  const [ammo, setAmmo] = useState(90);
+  const [ammo, setAmmo] = useState(120);
   const [kills, setKills] = useState(0);
   const [stolen, setStolen] = useState(0);
   const [shield, setShield] = useState(100);
-  const [message, setMessage] = useState('VAULT DEFENCE ONLINE · PROFITS ATTRACT RAIDERS');
+  const [message, setMessage] = useState('VAULT DEFENCE ONLINE · WELCOME TO CRYO LEVEL');
   const [flash, setFlash] = useState(false);
   const [wavesDefeated, setWavesDefeated] = useState(0);
   const [gameStatus, setGameStatus] = useState<'active' | 'critical' | 'victory'>('active');
-  const arenaRef = useRef<HTMLDivElement | null>(null);
+
+  const canvasRef = useRef(null);
+  const playerPosRef = useRef({ x: 0, z: 0 });
+  const cameraRotRef = useRef({ yaw: 0, pitch: 0 });
+  const moveInputRef = useRef({ x: 0, z: 0 });
   const prevProfitRef = useRef(tradingData.todayPnl);
 
   const pnl = tradingData.todayPnl;
@@ -100,18 +193,8 @@ export function VaultDoomInvaders({ open, onClose, tradingData }: Props) {
     return clamp(1 + profitHeat + profitDropHeat + lossHeat + positionHeat, 1, 14);
   }, [pnl, profitDropping, lossStreak, tradingData.positions]);
 
-  const levelIndex = clamp(Math.floor((difficulty - 1) / 2.8), 0, LEVELS.length - 1);
-  const levelName = LEVELS[levelIndex];
-
-  const vaultGirlDamage = useMemo(() => {
-    const winBonus = tradingData.winRate > 0 ? (tradingData.winRate / 100) * 25 : 0;
-    const moodBonus = tradingData.heartbeat === 'ONLINE' ? 15 : 0;
-    const profitBonus = pnl > 50 ? (pnl / 100) * 10 : 0;
-    return clamp(35 + winBonus + moodBonus + profitBonus, 18, 75);
-  }, [tradingData.winRate, tradingData.heartbeat, pnl]);
-
   const spawnRate = useMemo(() => {
-    const baseRate = Math.max(600, 3200 - difficulty * 200);
+    const baseRate = Math.max(800, 3200 - difficulty * 200);
     return profitDropping ? baseRate * 0.55 : baseRate;
   }, [difficulty, profitDropping]);
 
@@ -120,186 +203,206 @@ export function VaultDoomInvaders({ open, onClose, tradingData }: Props) {
     return profitDropping ? Math.floor(base * 1.3) : base;
   }, [difficulty, profitDropping]);
 
+  // Keyboard controls
+  useEffect(() => {
+    const keys = { w: false, a: false, s: false, d: false };
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'KeyW') keys.w = true;
+      if (e.code === 'KeyA') keys.a = true;
+      if (e.code === 'KeyS') keys.s = true;
+      if (e.code === 'KeyD') keys.d = true;
+      if (e.code === 'Space') fireAt();
+      if (e.code === 'Escape') onClose();
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'KeyW') keys.w = false;
+      if (e.code === 'KeyA') keys.a = false;
+      if (e.code === 'KeyS') keys.s = false;
+      if (e.code === 'KeyD') keys.d = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    const moveLoop = setInterval(() => {
+      const speed = 0.1;
+      moveInputRef.current.x = 0;
+      moveInputRef.current.z = 0;
+
+      if (keys.w) moveInputRef.current.z -= speed;
+      if (keys.s) moveInputRef.current.z += speed;
+      if (keys.a) moveInputRef.current.x -= speed;
+      if (keys.d) moveInputRef.current.x += speed;
+
+      // Apply movement with camera rotation
+      const cos = Math.cos(cameraRotRef.current.yaw);
+      const sin = Math.sin(cameraRotRef.current.yaw);
+      playerPosRef.current.x += moveInputRef.current.x * cos - moveInputRef.current.z * sin;
+      playerPosRef.current.z += moveInputRef.current.x * sin + moveInputRef.current.z * cos;
+
+      playerPosRef.current.x = clamp(playerPosRef.current.x, -8, 8);
+      playerPosRef.current.z = clamp(playerPosRef.current.z, -60, 0);
+    }, 16);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      clearInterval(moveLoop);
+    };
+  }, [onClose]);
+
+  // Spawn enemies
   useEffect(() => {
     if (!open) return;
-    const spawn = window.setInterval(() => {
-      setInvaders(current => {
+    const spawn = setInterval(() => {
+      setEnemies(current => {
         if (current.length >= maxEnemies) return current;
-        return [...current, makeInvader(difficulty, pnl, lossStreak, profitDropping)];
+        return [...current, makeEnemy(difficulty, pnl, lossStreak, profitDropping)];
       });
     }, spawnRate);
-    return () => window.clearInterval(spawn);
+    return () => clearInterval(spawn);
   }, [open, difficulty, pnl, lossStreak, profitDropping, spawnRate, maxEnemies]);
 
+  // Game loop
   useEffect(() => {
     if (!open) return;
-    const tick = window.setInterval(() => {
-      setInvaders(current => {
+    const tick = setInterval(() => {
+      setEnemies(current => {
         let breachDamage = 0;
-        let stolenNow = 0;
         let newWaves = 0;
-
-        const next = current.map(enemy => {
-          const dir = enemy.x < 50 ? 1 : -1;
-          const speedMult = profitDropping ? 1.15 : 1 + difficulty / 10;
-          const nx = enemy.x + dir * enemy.speed * speedMult;
+        
+        const next = current.filter(enemy => {
+          const dist = Math.hypot(
+            enemy.position[0] - playerPosRef.current.x,
+            enemy.position[2] - playerPosRef.current.z
+          );
           
-          if (Math.abs(nx - 50) < 3) {
-            if (enemy.threat === 'infiltrate') {
-              stolenNow += enemy.steal;
-            } else {
-              breachDamage += enemy.steal * 2.5;
-            }
+          if (dist < 1) {
+            breachDamage += enemy.threat === 'raid' ? enemy.speed * 2.5 : enemy.speed;
             newWaves += 1;
-            return { ...enemy, x: enemy.x < 50 ? -10 : 110, y: 22 + Math.random() * 54 };
+            return false;
           }
-          return { ...enemy, x: nx };
+          return true;
         });
 
-        if (breachDamage > 0 || stolenNow > 0) {
-          const totalDamage = breachDamage + stolenNow * 0.7;
-          setShield(s => clamp(s - totalDamage * 0.8, 0, 100));
-          setArmor(a => clamp(a - totalDamage * 0.3, 0, 100));
-          setHealth(h => clamp(h - Math.max(0, totalDamage - armor * 0.08), 0, 100));
-          setStolen(v => v + stolenNow);
-          
-          if (breachDamage > 0) {
-            setMessage(`🚨 VAULT BREACH! RAIDERS ATTACKING! · ${money(breachDamage)} STRUCTURAL DAMAGE`);
-          } else {
-            setMessage(`INFILTRATORS ESCAPED · ${money(stolenNow)} STOLEN`);
-          }
+        if (breachDamage > 0) {
+          setHealth(h => clamp(h - breachDamage, 0, 100));
+          setMessage(`🚨 VAULT BREACH! · STRUCTURAL DAMAGE`);
         }
-        
         if (newWaves > 0) setWavesDefeated(w => w + newWaves);
         return next;
       });
     }, 80);
-    return () => window.clearInterval(tick);
-  }, [open, difficulty, armor, profitDropping]);
+    return () => clearInterval(tick);
+  }, [open]);
 
-  useEffect(() => {
-    if (health <= 0) {
-      setGameStatus('critical');
-      setMessage('🔴 VAULT COMPROMISED · SYSTEM FAILURE');
-    } else if (shield <= 0 && armor <= 10) {
-      setGameStatus('critical');
-      setMessage('⚠️ CRITICAL DAMAGE · BACKUP SYSTEMS FAILING');
-    } else if (pnl > 0 && !profitDropping && invaders.length === 0 && kills > 8) {
-      setGameStatus('victory');
-      setMessage('✅ PROFITS SECURED · RAIDERS DEFEATED · VAULT SAFE');
-    }
-  }, [health, shield, armor, pnl, profitDropping, invaders.length, kills]);
-
-  const fireAt = (clientX?: number, clientY?: number) => {
+  const fireAt = () => {
     if (ammo <= 0) {
-      setMessage('NO AMMO · PROFIT BLASTER EMPTY · RESUPPLY NEEDED');
+      setMessage('NO AMMO');
       return;
     }
+    
     setAmmo(a => Math.max(0, a - 1));
     setFlash(true);
-    window.setTimeout(() => setFlash(false), 90);
+    setTimeout(() => setFlash(false), 100);
 
-    const rect = arenaRef.current?.getBoundingClientRect();
-    const tx = rect && clientX != null ? ((clientX - rect.left) / rect.width) * 100 : 50;
-    const ty = rect && clientY != null ? ((clientY - rect.top) / rect.height) * 100 : 50;
-
-    setInvaders(current => {
-      if (!current.length) {
-        setMessage('SHOT FIRED · NO TARGET · STANDBY');
-        return current;
-      }
-      let best = -1;
-      let dist = Infinity;
-      current.forEach((e, i) => {
-        const d = Math.hypot(e.x - tx, e.y - ty);
-        if (d < dist) { dist = d; best = i; }
+    setEnemies(current => {
+      if (!current.length) return current;
+      
+      const closest = current.reduce((prev, curr) => {
+        const prevDist = Math.hypot(prev.position[0] - playerPosRef.current.x, prev.position[2] - playerPosRef.current.z);
+        const currDist = Math.hypot(curr.position[0] - playerPosRef.current.x, curr.position[2] - playerPosRef.current.z);
+        return currDist < prevDist ? curr : prev;
       });
-      if (best < 0 || dist > 23) {
-        setMessage('MISSED · INVADERS ADVANCING');
+
+      const dist = Math.hypot(closest.position[0] - playerPosRef.current.x, closest.position[2] - playerPosRef.current.z);
+      
+      if (dist > 15) {
+        setMessage('OUT OF RANGE');
         return current;
       }
-      const copy = [...current];
-      const enemy = copy[best];
-      const hp = enemy.hp - vaultGirlDamage;
+
+      const damage = 45;
+      const hp = closest.hp - damage;
+      
       if (hp <= 0) {
-        copy.splice(best, 1);
         setKills(k => k + 1);
         setShield(s => clamp(s + 4, 0, 100));
-        if (enemy.threat === 'raid') {
-          setMessage(`🎯 ${enemy.type} DESTROYED · BREACH AVERTED!`);
-        } else {
-          setMessage(`${enemy.type} DESTROYED · PROFIT SECURED`);
-        }
-        if (Math.random() > 0.52) setAmmo(a => clamp(a + 6, 0, 180));
+        setMessage(`${closest.type} DESTROYED`);
+        if (Math.random() > 0.5) setAmmo(a => clamp(a + 8, 0, 160));
+        return current.filter(e => e.id !== closest.id);
       } else {
-        copy[best] = { ...enemy, hp };
-        const threatLabel = enemy.threat === 'raid' ? '⚠️' : '';
-        setMessage(`${threatLabel} ${enemy.type} HIT · ${Math.ceil(hp)} HP`);
+        return current.map(e => e.id === closest.id ? { ...e, hp } : e);
       }
-      return copy;
     });
   };
 
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Space') { e.preventDefault(); fireAt(); }
-      if (e.code === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
+    if (health <= 0) {
+      setGameStatus('critical');
+      setMessage('🔴 VAULT COMPROMISED');
+    } else if (pnl > 0 && !profitDropping && enemies.length === 0 && kills > 5) {
+      setGameStatus('victory');
+      setMessage('✅ VAULT SECURED');
+    }
+  }, [health, pnl, profitDropping, enemies.length, kills]);
 
   if (!open) return null;
 
   const isInRaidMode = profitDropping && difficulty > 5;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(0,0,0,.95)', color: '#00ff66', fontFamily: 'Courier New, monospace', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isInRaidMode ? '3px solid #ff3333' : '2px solid #00ff44', background: isInRaidMode ? '#330000' : '#001000' }}>
-        <div>
-          <div style={{ fontSize: 18, letterSpacing: 4, fontWeight: 'bold', color: isInRaidMode ? '#ff5555' : '#00ff66' }}>VAULT 63 DOOM DEFENCE {isInRaidMode ? '🚨 RAID MODE 🚨' : ''}</div>
-          <div style={{ fontSize: 10, color: isInRaidMode ? '#ff7777' : '#00aa44', letterSpacing: 2 }}>{levelName} · DIFFICULTY {difficulty.toFixed(1)} {profitDropping ? '↓ PROFIT DROPPING' : '↑ SECURE'}</div>
-        </div>
-        <button onClick={onClose} style={{ background: '#220000', border: '1px solid #ff5555', color: '#ff7777', borderRadius: 6, padding: '10px 14px', fontFamily: 'inherit', letterSpacing: 2 }}>EXIT</button>
-      </div>
-
-      <div
-        ref={arenaRef}
-        onClick={(e) => fireAt(e.clientX, e.clientY)}
-        onTouchStart={(e) => { const t = e.touches[0]; if (t) fireAt(t.clientX, t.clientY); }}
-        style={{ flex: 1, position: 'relative', overflow: 'hidden', cursor: 'crosshair', background: isInRaidMode ? 'radial-gradient(circle at center, #330000 0%, #110000 55%, #000 100%)' : 'radial-gradient(circle at center, #082008 0%, #020802 55%, #000 100%)', touchAction: 'manipulation' }}
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1200, background: '#000', fontFamily: 'Courier New, monospace' }}>
+      <Canvas
+        ref={canvasRef}
+        camera={{ fov: 75, near: 0.1, far: 1000, position: [0, 1.6, 0] }}
+        gl={{ antialias: true }}
+        onClick={() => (canvasRef.current as any)?.requestPointerLock?.()}
       >
-        <div style={{ position: 'absolute', left: '43%', top: '31%', width: '14%', height: '38%', border: `3px solid ${isInRaidMode ? '#ff3333' : '#00ff44'}`, borderRadius: 10, boxShadow: `0 0 35px ${isInRaidMode ? '#ff333366' : '#00ff4466'}, inset 0 0 30px ${isInRaidMode ? '#ff333422' : '#00ff4422'}` }} />
-        <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', color: isInRaidMode ? '#ff5555' : '#00ff88', fontSize: 11, letterSpacing: 2, textAlign: 'center', fontWeight: 'bold' }}>VAULT<br/>CORE</div>
-
-        {invaders.map(enemy => (
-          <div key={enemy.id} style={{ position: 'absolute', left: `${enemy.x}%`, top: `${enemy.y}%`, transform: 'translate(-50%,-50%)', width: enemy.size, height: enemy.size, borderRadius: enemy.type.includes('BOSS') ? 4 : '50%', border: `2px solid ${enemy.color}`, color: enemy.color, background: '#050505', boxShadow: `0 0 20px ${enemy.color}${enemy.threat === 'raid' ? 'cc' : '88'}, ${enemy.threat === 'raid' ? 'inset 0 0 15px #ff3333' : ''}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: enemy.type.includes('BOSS') ? 16 : 12, fontWeight: 'bold', opacity: enemy.threat === 'raid' ? 1 : 0.85 }}>
-            {enemy.type === 'WHALE THIEF' ? '🐋' : enemy.type === 'LIQUIDATION GHOUL' ? '☠' : enemy.type === 'RUG PULL BOSS' ? 'BOSS' : enemy.type === 'FLASH CRASH PHANTOM' ? '⚡' : enemy.type === 'CIRCUIT BREAKER' ? '💥' : 'FUD'}
-            <div style={{ position: 'absolute', top: -8, left: 0, height: 3, width: '100%', background: '#220000' }}>
-              <div style={{ height: '100%', width: `${clamp((enemy.hp / enemy.maxHp) * 100, 0, 100)}%`, background: enemy.color }} />
-            </div>
-            {enemy.threat === 'raid' && <div style={{ position: 'absolute', fontSize: 8, top: -12, right: -8, color: '#ff3333', fontWeight: 'bold' }}>RAID</div>}
-          </div>
+        <FPSCamera playerPosRef={playerPosRef} cameraRotRef={cameraRotRef} />
+        <VaultCorridor />
+        {enemies.map(enemy => (
+          <EnemyModel key={enemy.id} enemy={enemy} onHit={() => fireAt()} />
         ))}
+      </Canvas>
 
-        {flash && <div style={{ position: 'absolute', left: '50%', bottom: '8%', transform: 'translateX(-50%)', width: 90, height: 90, borderRadius: '50%', background: 'radial-gradient(circle, #fff 0%, #00ff88 25%, transparent 70%)', opacity: .8, pointerEvents: 'none' }} />}
-
-        <div style={{ position: 'absolute', left: 10, top: 10, color: '#ffaa00', fontSize: 12, letterSpacing: 2 }}>PROFIT HEAT: {money(Math.max(0, pnl))}</div>
-        <div style={{ position: 'absolute', right: 10, top: 10, color: isInRaidMode ? '#ff5555' : '#ff7777', fontSize: 12, letterSpacing: 2 }}>STOLEN: {money(stolen)}</div>
-        <div style={{ position: 'absolute', left: 10, bottom: 10, right: 200, color: '#00ff88', fontSize: 12, letterSpacing: 2 }}>{message}</div>
-        <div style={{ position: 'absolute', right: 10, bottom: 10, color: '#00aaff', fontSize: 11, letterSpacing: 1, textAlign: 'right' }}>WAVES CLEARED: {wavesDefeated}<br/>STATUS: {gameStatus.toUpperCase()}</div>
+      {/* HUD */}
+      <div style={{ position: 'fixed', top: 10, left: 10, color: '#00ff66', fontSize: 12, letterSpacing: 1 }}>
+        <div>VAULT 63 DOOM DEFENCE {isInRaidMode ? '🚨 RAID MODE 🚨' : ''}</div>
+        <div style={{ color: '#00aa44', fontSize: 10 }}>DIFFICULTY {difficulty.toFixed(1)}</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, padding: 8, background: '#050805', borderTop: isInRaidMode ? '2px solid #ff3333' : '2px solid #00ff44', fontSize: 11, textAlign: 'center' }}>
-        <div>HEALTH<br/><b style={{ color: health < 30 ? '#ff5555' : health < 60 ? '#ffaa00' : '#00ff66' }}>{Math.round(health)}</b></div>
-        <div>ARMOR<br/><b style={{ color: armor < 20 ? '#ff5555' : '#00ff66' }}>{Math.round(armor)}</b></div>
-        <div>SHIELD<br/><b style={{ color: shield < 25 ? '#ff5555' : '#00ff66' }}>{Math.round(shield)}</b></div>
+      <div style={{ position: 'fixed', top: 10, right: 10, color: '#ffaa00', fontSize: 11, textAlign: 'right' }}>
+        <div>PROFIT HEAT: {money(Math.max(0, pnl))}</div>
+        <div>{message}</div>
+      </div>
+
+      <div style={{ position: 'fixed', bottom: 10, left: 10, color: '#00ff66', fontSize: 11, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+        <div>HEALTH<br/><b style={{ color: health < 30 ? '#ff5555' : '#00ff66' }}>{Math.round(health)}</b></div>
+        <div>ARMOR<br/><b>{Math.round(armor)}</b></div>
         <div>AMMO<br/><b>{ammo}</b></div>
-        <div>KILLS<br/><b style={{ color: '#00aaff' }}>{kills}</b></div>
-        <div>MODE<br/><b style={{ color: isInRaidMode ? '#ff5555' : '#00ff66' }}>{profitDropping ? 'RAID' : 'GUARD'}</b></div>
-        <div>EQUITY<br/><b>{money(equity)}</b></div>
+        <div>KILLS<br/><b>{kills}</b></div>
       </div>
+
+      <div style={{ position: 'fixed', bottom: 10, right: 10, color: '#00aaff', fontSize: 10, textAlign: 'right' }}>
+        <div>WAVES: {wavesDefeated}</div>
+        <div>STATUS: {gameStatus}</div>
+      </div>
+
+      {flash && <div style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }} />}
+
+      <div style={{ position: 'fixed', bottom: 10, left: '50%', transform: 'translateX(-50%)', color: '#ffaa00', fontSize: 14, fontWeight: 'bold' }}>
+        + ✕
+      </div>
+
+      <button
+        onClick={onClose}
+        style={{ position: 'fixed', top: 10, right: 10, zIndex: 999, background: '#220000', border: '1px solid #ff5555', color: '#ff7777', padding: '8px 12px', borderRadius: 4, fontFamily: 'inherit', cursor: 'pointer' }}
+      >
+        EXIT
+      </button>
     </div>
   );
 }
