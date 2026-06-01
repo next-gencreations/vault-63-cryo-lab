@@ -48,6 +48,11 @@ function VaultGame() {
   // Live trading data — drives Pip-Boy TRADE screen, terminal, and vault girl mood
   const trading = useTradingData(8_000);
 
+  // Safe compatibility value: older code used pnlToday, newer hook uses todayPnl.
+  const pnlToday = Number(
+    (trading as any).pnlToday ?? (trading as any).todayPnl ?? 0
+  );
+
   // Shared refs that cross the Canvas/HTML boundary
   const cameraRotRef = useRef({ yaw: 0, pitch: 0 });
   const moveInputRef = useRef({ x: 0, z: 0 });
@@ -200,7 +205,7 @@ function VaultGame() {
               onClick={() => setDoomOpen(true)}
               style={{
                 position: 'fixed', top: 96, right: 8, zIndex: 140,
-                background: trading.pnlToday > 0 ? 'rgba(60,20,0,0.95)' : 'rgba(0,20,0,0.85)',
+                background: pnlToday > 0 ? 'rgba(60,20,0,0.95)' : 'rgba(0,20,0,0.85)',
                 border: '1px solid #ffcc44', color: '#ffcc44', borderRadius: 5,
                 padding: '9px 10px', fontFamily: 'Courier New, monospace',
                 fontSize: 10, letterSpacing: 1, boxShadow: '0 0 14px #ffcc4433',
@@ -219,13 +224,13 @@ function VaultGame() {
                 direction="down"
                 walking={false}
                 introStep={3}
-                mood={trading.mood}
-                vaultState={trading.vaultState}
-                vaultLine={trading.vaultLine}
+                mood={(trading as any).mood}
+                vaultState={(trading as any).vaultState}
+                vaultLine={(trading as any).vaultLine}
               />
               <div style={{ color: '#00ff88', fontSize: 7, letterSpacing: 1, marginTop: 3 }}>
-                {trading.status} · {trading.connected ? trading.secondsAgo + 's' : 'SYNC'}<br/>
-                HP {trading.lossStreak >= 3 ? 'LOW' : 'OK'} · {trading.pnlToday >= 0 ? '+' : ''}${trading.pnlToday.toFixed(2)}
+                {(trading as any).status} · {trading.connected ? (trading as any).secondsAgo + 's' : 'SYNC'}<br/>
+                HP {trading.lossStreak >= 3 ? 'LOW' : 'OK'} · {pnlToday >= 0 ? '+' : ''}${pnlToday.toFixed(2)}
               </div>
             </div>
           )}
@@ -355,9 +360,9 @@ function VaultGame() {
                 direction="down"
                 walking={false}
                 introStep={3}
-                mood={trading.mood}
-                vaultState={trading.vaultState}
-                vaultLine={trading.vaultLine}
+                mood={(trading as any).mood}
+                vaultState={(trading as any).vaultState}
+                vaultLine={(trading as any).vaultLine}
               />
               <div style={{ color: '#00aa33', fontSize: 7, letterSpacing: 2, textAlign: 'center' }}>
                 TAB — PIP-BOY
@@ -420,8 +425,8 @@ function VaultGame() {
         onChangeScreen={setPipBoyScreen}
         onClose={() => setPipBoyOpen(false)}
         tradingData={trading}
-        apiUrl={trading.apiUrl}
-        setApiUrl={trading.setApiUrl}
+        apiUrl={(trading as any).apiUrl}
+        setApiUrl={(trading as any).setApiUrl}
       />
 
       {/* Terminal modal */}
